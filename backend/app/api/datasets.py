@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException
-from typing import List
 from app.tools.kaggle_tool import KaggleTool
 
 router = APIRouter()
 kaggle_tool = KaggleTool()
+
 
 @router.get("/datasets/search")
 async def search_datasets(q: str, page: int = 1):
@@ -13,6 +13,7 @@ async def search_datasets(q: str, page: int = 1):
         return {"results": results}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.get("/datasets/{dataset_id}")
 async def get_dataset(dataset_id: str):

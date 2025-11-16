@@ -2,11 +2,11 @@
 LangChain-based agent orchestration for DS Research Assistant
 Integrates Gemini + Kaggle + custom tools
 """
+
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain.tools import Tool
 from langchain.prompts import PromptTemplate
-from langchain.memory import ConversationBufferMemory
 from typing import Dict, Any, List
 import logging
 
@@ -16,57 +16,59 @@ from app.tools.execution_tool import ExecutionTool
 
 logger = logging.getLogger(__name__)
 
+
 class LangChainAgent:
     """LangChain orchestration for multi-tool agent"""
-    
+
     def __init__(self):
         # Initialize Gemini via LangChain
         self.llm = ChatGoogleGenerativeAI(
             model="models/gemini-2.0-flash",
             google_api_key=settings.gemini_api_key,
             temperature=0.1,
-            convert_system_message_to_human=True
+            convert_system_message_to_human=True,
         )
-        
+
         # Initialize tools
         self.kaggle_tool = KaggleTool()
         self.execution_tool = ExecutionTool()
-        
+
         # Create LangChain tools
         self.tools = self._create_tools()
-        
+
         # Create agent
         self.agent = self._create_agent()
-    
+
     def _create_tools(self) -> List[Tool]:
         """Create LangChain tool wrappers"""
         return [
             Tool(
                 name="search_kaggle_datasets",
                 func=self._search_datasets_sync,
-                description="Search for Kaggle datasets by query. Input: search query string. Returns: list of datasets with id, title, size."
+                description="Search for Kaggle datasets by query. Input: search query string. Returns: list of datasets with id, title, size.",
             ),
             Tool(
                 name="get_dataset_info",
                 func=self._get_dataset_info_sync,
-                description="Get detailed information about a Kaggle dataset. Input: dataset_id (format: username/dataset-name). Returns: metadata including columns and description."
+                description="Get detailed information about a Kaggle dataset. Input: dataset_id (format: username/dataset-name). Returns: metadata including columns and description.",
             ),
             Tool(
                 name="execute_python_code",
                 func=self._execute_code_sync,
-                description="Execute Python code for data analysis. Input: Python code as string. The code should use pandas, numpy, sklearn, matplotlib. Returns: execution results and artifacts."
+                description="Execute Python code for data analysis. Input: Python code as string. The code should use pandas, numpy, sklearn, matplotlib. Returns: execution results and artifacts.",
             ),
             Tool(
                 name="generate_analysis_plan",
                 func=self._generate_plan,
-                description="Generate a step-by-step analysis plan. Input: user query and dataset context. Returns: structured analysis plan."
-            )
+                description="Generate a step-by-step analysis plan. Input: user query and dataset context. Returns: structured analysis plan.",
+            ),
         ]
-    
+
     def _create_agent(self) -> AgentExecutor:
         """Create ReAct agent with tools"""
-        
-        prompt = PromptTemplate.from_template("""
+
+        prompt = PromptTemplate.from_template(
+            """
 You are an expert data science research assistant. You have access to Kaggle datasets and can execute Python code for analysis.
 
 Available tools:
@@ -89,82 +91,79 @@ Begin!
 
 Question: {input}
 Thought: {agent_scratchpad}
-""")
-        
-        agent = create_react_agent(
-            llm=self.llm,
-            tools=self.tools,
-            prompt=prompt
+"""
         )
-        
+
+        agent = create_react_agent(llm=self.llm, tools=self.tools, prompt=prompt)
+
         return AgentExecutor(
             agent=agent,
             tools=self.tools,
             verbose=True,
             max_iterations=5,
-            handle_parsing_errors=True
+            handle_parsing_errors=True,
         )
-    
+
     async def run(self, query: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Run agent with query"""
         try:
             # Add context to query if provided
             full_query = query
-            if context and context.get('dataset_id'):
+            if context and context.get("dataset_id"):
                 full_query = f"Using dataset {context['dataset_id']}: {query}"
-            
+
             # Execute agent
             result = await self.agent.ainvoke({"input": full_query})
-            
+
             return {
-                'status': 'success',
-                'output': result.get('output', ''),
-                'intermediate_steps': result.get('intermediate_steps', [])
+                "status": "success",
+                "output": result.get("output", ""),
+                "intermediate_steps": result.get("intermediate_steps", []),
             }
         except Exception as e:
             logger.error(f"LangChain agent error: {str(e)}")
-            return {
-                'status': 'error',
-                'error': str(e)
-            }
-    
+            return {"status": "error", "error": str(e)}
+
     # Sync wrappers for tools (LangChain requires sync functions)
     def _search_datasets_sync(self, query: str) -> str:
         """Sync wrapper for dataset search"""
         import asyncio
+
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-        
+
         results = loop.run_until_complete(self.kaggle_tool.search_datasets(query))
         return str(results[:3])  # Return top 3
-    
+
     def _get_dataset_info_sync(self, dataset_id: str) -> str:
         """Sync wrapper for dataset info"""
         import asyncio
+
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-        
+
         info = loop.run_until_complete(self.kaggle_tool.get_dataset_info(dataset_id))
         return str(info)
-    
+
     def _execute_code_sync(self, code: str) -> str:
         """Sync wrapper for code execution"""
         import asyncio
+
         try:
             loop = asyncio.get_event_loop()
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-        
+
         result = loop.run_until_complete(self.execution_tool.execute(code))
         return f"Status: {result['status']}, Output: {result.get('stdout', '')[:500]}"
-    
+
     def _generate_plan(self, query: str) -> str:
         """Generate analysis plan"""
         plan_prompt = f"""

@@ -1,10 +1,12 @@
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 
+
 class QueryRequest(BaseModel):
     session_id: str
     query: str
     dataset_id: Optional[str] = None
+
 
 class QueryResponse(BaseModel):
     job_id: str
@@ -16,8 +18,10 @@ class QueryResponse(BaseModel):
     explanation: Optional[str] = None
     error: Optional[str] = None
 
+
 class SessionCreate(BaseModel):
     user_id: Optional[str] = None
+
 
 class SessionResponse(BaseModel):
     session_id: str
