@@ -1,0 +1,79 @@
+{
+    "tool_id": "executor.run_code",
+    "name": "Sandbox Code Executor",
+    "version": "1.0.0",
+    "description": "Run Python analysis code in an isolated sandbox container",
+    "auth": {
+        "type": "agent_token",
+        "scope": [
+            "executor:run"
+        ]
+    },
+    "inputs": {
+        "script_path": {
+            "type": "string",
+            "required": true,
+            "description": "Path to Python script to execute"
+        },
+        "mounts": {
+            "type": "object",
+            "required": false,
+            "description": "Map of host paths to container paths"
+        },
+        "timeout_seconds": {
+            "type": "integer",
+            "required": false,
+            "default": 300,
+            "description": "Maximum execution time"
+        },
+        "env_vars": {
+            "type": "object",
+            "required": false,
+            "description": "Environment variables to set"
+        }
+    },
+    "outputs": {
+        "stdout": {
+            "type": "string",
+            "description": "Standard output from execution"
+        },
+        "stderr": {
+            "type": "string",
+            "description": "Standard error from execution"
+        },
+        "artifacts": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "Paths to generated artifacts (plots, CSVs, etc.)"
+        },
+        "exit_code": {
+            "type": "integer",
+            "description": "Process exit code"
+        }
+    },
+    "constraints": {
+        "network": "none",
+        "cpu_limit": "2",
+        "memory_limit_mb": 2048,
+        "disk_limit_mb": 1024,
+        "allowed_modules": [
+            "pandas",
+            "numpy",
+            "sklearn",
+            "matplotlib",
+            "seaborn",
+            "plotly"
+        ],
+        "blocked_imports": [
+            "os",
+            "subprocess",
+            "socket",
+            "requests",
+            "urllib"
+        ]
+    },
+    "long_running": true,
+    "approval_required": true
+}

@@ -1,0 +1,68 @@
+{
+    "tool_id": "analyzer.eda",
+    "name": "Automated EDA Analyzer",
+    "version": "1.0.0",
+    "description": "Perform comprehensive exploratory data analysis on a dataset",
+    "auth": {
+        "type": "agent_token",
+        "scope": [
+            "analyzer:run"
+        ]
+    },
+    "inputs": {
+        "dataset_path": {
+            "type": "string",
+            "required": true,
+            "description": "Path to dataset file (CSV, Parquet)"
+        },
+        "analysis_type": {
+            "type": "string",
+            "required": false,
+            "default": "full",
+            "enum": [
+                "basic",
+                "full",
+                "advanced"
+            ],
+            "description": "Level of analysis to perform"
+        },
+        "generate_plots": {
+            "type": "boolean",
+            "required": false,
+            "default": true,
+            "description": "Whether to generate visualization plots"
+        }
+    },
+    "outputs": {
+        "summary_stats": {
+            "type": "object",
+            "description": "Summary statistics for all columns"
+        },
+        "missing_data": {
+            "type": "object",
+            "description": "Missing data analysis"
+        },
+        "correlations": {
+            "type": "object",
+            "description": "Correlation matrix and high correlations"
+        },
+        "visualizations": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "Paths to generated visualization files"
+        },
+        "report_path": {
+            "type": "string",
+            "description": "Path to generated markdown report"
+        }
+    },
+    "constraints": {
+        "max_rows": 1000000,
+        "max_columns": 1000,
+        "timeout_seconds": 180
+    },
+    "long_running": false,
+    "approval_required": false
+}

@@ -1,0 +1,58 @@
+{
+    "tool_id": "kaggle.dataset.download",
+    "name": "Kaggle Dataset Downloader",
+    "version": "1.0.0",
+    "description": "Download dataset files from Kaggle to a workspace",
+    "auth": {
+        "type": "kaggle_token",
+        "scope": [
+            "datasets:read"
+        ]
+    },
+    "inputs": {
+        "dataset_ref": {
+            "type": "string",
+            "required": true,
+            "description": "Kaggle dataset reference (owner/dataset-slug)"
+        },
+        "unzip": {
+            "type": "boolean",
+            "required": false,
+            "default": true,
+            "description": "Whether to unzip downloaded files"
+        },
+        "file_glob": {
+            "type": "string",
+            "required": false,
+            "description": "Glob pattern to filter files (e.g., *.csv)"
+        }
+    },
+    "outputs": {
+        "dataset_path": {
+            "type": "string",
+            "description": "Server path to downloaded dataset folder"
+        },
+        "files": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "description": "List of downloaded file paths"
+        },
+        "size_mb": {
+            "type": "number",
+            "description": "Total size in megabytes"
+        }
+    },
+    "constraints": {
+        "max_size_mb": 500,
+        "allowed_file_types": [
+            ".csv",
+            ".parquet",
+            ".json"
+        ],
+        "timeout_seconds": 300
+    },
+    "long_running": true,
+    "approval_required": false
+}
