@@ -13,6 +13,7 @@ jobs:
       GEMINI_API_KEY: test-key
       DATABASE_URL: sqlite:///test.db
       REDIS_URL: redis://localhost:6379
+      PYTEST_DISABLE_PLUGIN_AUTOLOAD: '1'
     steps:
       - uses: actions/checkout@v3
       
@@ -25,12 +26,13 @@ jobs:
         run: |
           cd backend
           pip install -r requirements.txt
-          pip install pytest pytest-cov
+          pip install pytest pytest-cov pytest-asyncio
       
       - name: Run tests
         run: |
           cd backend
-          pytest tests/ -v || echo "Tests failed but continuing"
+          # disable the langsmith pytest plugin in CI to prevent external initialization
+          pytest -p no:langsmith_plugin tests/ -v || echo "Tests failed but continuing"
       
       - name: Upload coverage (if available)
         if: always()
