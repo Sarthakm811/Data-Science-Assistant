@@ -16,8 +16,9 @@ class AgentService:
         genai.configure(api_key=settings.gemini_api_key)
         self.model = genai.GenerativeModel("models/gemini-2.0-flash")
         self.redis = redis_service
-        self.kaggle_tool = KaggleTool()
-        self.execution_tool = ExecutionTool()
+        # Lazily instantiate external tools to avoid network/auth side-effects during import/tests
+        self.kaggle_tool = None
+        self.execution_tool = None
 
     async def handle_query(
         self, session_id: str, query: str, dataset_id: Optional[str] = None
@@ -33,6 +34,9 @@ class AgentService:
             # Get dataset info if provided
             dataset_summary = ""
             if dataset_id:
+                # instantiate KaggleTool only when needed (avoids network/auth during tests)
+                if self.kaggle_tool is None:
+                    self.kaggle_tool = KaggleTool()
                 dataset_summary = await self.kaggle_tool.get_dataset_summary(dataset_id)
                 session_data["current_dataset"] = dataset_id
 
@@ -51,6 +55,9 @@ class AgentService:
             artifacts = []
             if code:
                 logger.info(f"Executing code for job {job_id}")
+                # instantiate ExecutionTool lazily to avoid side-effects during tests
+                if self.execution_tool is None:
+                    self.execution_tool = ExecutionTool()
                 exec_result = await self.execution_tool.execute(
                     code=code, dataset_id=dataset_id, job_id=job_id
                 )
