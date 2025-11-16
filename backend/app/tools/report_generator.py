@@ -16,7 +16,7 @@ class ReportGenerator:
     ) -> str:
         """Generate markdown report"""
         report = []
-        report.append(f"# Data Science Analysis Report")
+        report.append("# Data Science Analysis Report")
         report.append(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         report.append(f"**Job ID:** {job_id}\n")
 

@@ -10,7 +10,7 @@ jobs:
   test-backend:
     runs-on: ubuntu-latest
     env:
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || 'test-key' }}
+      GEMINI_API_KEY: test-key
       DATABASE_URL: sqlite:///test.db
       REDIS_URL: redis://localhost:6379
     steps:
