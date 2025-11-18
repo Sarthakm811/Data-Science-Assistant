@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import plotly.express as px
 import google.generativeai as genai
-from kaggle.api.kaggle_api_extended import KaggleApi
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
@@ -15,6 +14,9 @@ import os
 import sys
 from datetime import datetime
 import json
+
+# Kaggle API will be imported only when needed to avoid authentication errors
+KaggleApi = None
 
 # Add backend to path for enterprise EDA
 sys.path.insert(0, os.path.abspath('.'))
@@ -159,6 +161,9 @@ with tab1:
     if search_btn and search_query and kaggle_username and kaggle_key:
         with st.spinner("Searching Kaggle..."):
             try:
+                # Import Kaggle API only when needed
+                from kaggle.api.kaggle_api_extended import KaggleApi
+                
                 os.environ['KAGGLE_USERNAME'] = kaggle_username
                 os.environ['KAGGLE_KEY'] = kaggle_key
                 
@@ -187,6 +192,9 @@ with tab1:
                 if st.button(f"📥 Download & Load", key=f"load_{idx}"):
                     with st.spinner("📥 Downloading dataset from Kaggle..."):
                         try:
+                            # Import Kaggle API only when needed
+                            from kaggle.api.kaggle_api_extended import KaggleApi
+                            
                             # Re-authenticate for download
                             os.environ['KAGGLE_USERNAME'] = kaggle_username
                             os.environ['KAGGLE_KEY'] = kaggle_key
