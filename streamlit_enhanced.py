@@ -113,10 +113,26 @@ with st.sidebar:
     uploaded_file = st.file_uploader("Upload CSV", type=['csv'])
     
     if uploaded_file:
-        st.session_state.df = pd.read_csv(uploaded_file)
-        st.session_state.selected_dataset = uploaded_file.name
-        st.success(f"Loaded: {uploaded_file.name}")
-        st.info(f"Shape: {st.session_state.df.shape}")
+        try:
+            st.session_state.df = pd.read_csv(uploaded_file)
+        except UnicodeDecodeError:
+            # Try alternative encodings
+            for encoding in ['latin-1', 'iso-8859-1', 'cp1252', 'utf-16']:
+                try:
+                    uploaded_file.seek(0)  # Reset file pointer
+                    st.session_state.df = pd.read_csv(uploaded_file, encoding=encoding)
+                    st.info(f"✓ File loaded with {encoding} encoding")
+                    break
+                except:
+                    continue
+            else:
+                st.error("Could not decode file with any supported encoding")
+                st.session_state.df = None
+        
+        if st.session_state.df is not None:
+            st.session_state.selected_dataset = uploaded_file.name
+            st.success(f"Loaded: {uploaded_file.name}")
+            st.info(f"Shape: {st.session_state.df.shape}")
     
     # Show current dataset status
     st.divider()
@@ -231,8 +247,20 @@ with tab1:
                                 
                                 st.info(f"Loading {os.path.basename(selected_file)}...")
                                 
-                                # Load the dataset
-                                df_new = pd.read_csv(selected_file)
+                                # Load the dataset with encoding detection
+                                try:
+                                    df_new = pd.read_csv(selected_file)
+                                except UnicodeDecodeError:
+                                    # Try alternative encodings
+                                    for encoding in ['latin-1', 'iso-8859-1', 'cp1252', 'utf-16']:
+                                        try:
+                                            df_new = pd.read_csv(selected_file, encoding=encoding)
+                                            st.info(f"✓ File loaded with {encoding} encoding")
+                                            break
+                                        except:
+                                            continue
+                                    else:
+                                        raise ValueError("Could not decode file with any supported encoding")
                                 
                                 # Store in session state
                                 st.session_state.df = df_new
