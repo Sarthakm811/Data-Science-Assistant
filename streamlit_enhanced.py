@@ -1375,9 +1375,13 @@ with tab8:
             target_col = st.selectbox("Target column", df.columns)
             method = st.selectbox("Method", ["smote", "undersample"])
             if st.button("Balance"):
-                df_balanced = processor.balance_dataset(target_col, method)
-                st.session_state.df = df_balanced
-                st.success("✅ Dataset balanced")
+                result = processor.balance_dataset(target_col, method)
+                if isinstance(result, tuple):
+                    df_balanced, error_msg = result
+                    st.error(f"⚠️ {error_msg}")
+                else:
+                    st.session_state.df = result
+                    st.success("✅ Dataset balanced")
         
         elif process_type == "Data Quality Score":
             score = processor.get_data_quality_score()

@@ -105,15 +105,24 @@ class DataProcessor:
         X = self.df.drop(target_col, axis=1)
         y = self.df[target_col]
         
-        if method == 'smote':
-            smote = SMOTE(random_state=42)
-            X_balanced, y_balanced = smote.fit_resample(X, y)
-        elif method == 'undersample':
-            rus = RandomUnderSampler(random_state=42)
-            X_balanced, y_balanced = rus.fit_resample(X, y)
-        
-        balanced_df = pd.concat([X_balanced, y_balanced], axis=1)
-        return balanced_df
+        # Check if target is categorical (for classification)
+        if y.dtype == 'object' or len(y.unique()) < 20:
+            # Classification task
+            if method == 'smote':
+                try:
+                    smote = SMOTE(random_state=42)
+                    X_balanced, y_balanced = smote.fit_resample(X, y)
+                except Exception as e:
+                    return self.df, f"SMOTE failed: {str(e)}"
+            elif method == 'undersample':
+                rus = RandomUnderSampler(random_state=42)
+                X_balanced, y_balanced = rus.fit_resample(X, y)
+            
+            balanced_df = pd.concat([X_balanced, y_balanced], axis=1)
+            return balanced_df
+        else:
+            # Regression task - cannot use SMOTE
+            return self.df, "Target appears to be continuous (regression). Balancing only works for classification tasks."
     
     def merge_datasets(self, other_df, on, how='inner'):
         """Merge datasets"""
