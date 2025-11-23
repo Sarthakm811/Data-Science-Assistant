@@ -155,12 +155,16 @@ st.markdown("<p style='text-align: center; color: gray;'>Your Personal AI Data S
             unsafe_allow_html=True)
 
 # Tabs
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
     "🔍 Dataset Search", 
     "📊 Auto EDA", 
     "🤖 Auto ML", 
     "💬 AI Chat", 
-    "📄 Reports"
+    "📄 Reports",
+    "📈 Advanced Statistics",
+    "🎨 3D Visualization",
+    "🧹 Data Processing",
+    "🎯 Anomaly Detection"
 ])
 
 # Tab 1: Dataset Search
@@ -1189,6 +1193,251 @@ plt.show()
                 st.code(code, language='python')
     else:
         st.info("Load a dataset to generate reports")
+
+# Tab 6: Advanced Statistics
+with tab6:
+    st.header("📈 Advanced Statistical Analysis")
+    
+    if st.session_state.df is not None:
+        from modules.statistical_analysis import StatisticalAnalyzer
+        
+        df = st.session_state.df
+        analyzer = StatisticalAnalyzer(df)
+        
+        stat_col1, stat_col2 = st.columns(2)
+        
+        with stat_col1:
+            st.subheader("📊 Normality Tests")
+            if st.button("Run Normality Tests"):
+                results = analyzer.normality_tests()
+                st.dataframe(pd.DataFrame(results).T)
+        
+        with stat_col2:
+            st.subheader("📉 Distribution Analysis")
+            numeric_cols = df.select_dtypes(include=[np.number]).columns
+            selected_col = st.selectbox("Select column", numeric_cols, key="dist_col")
+            if st.button("Analyze Distribution"):
+                fig = analyzer.distribution_analysis(selected_col)
+                st.plotly_chart(fig, use_container_width=True)
+        
+        st.subheader("🔗 Correlation Analysis")
+        if st.button("Generate Correlation Matrix"):
+            fig, corr_matrix = analyzer.correlation_analysis()
+            st.plotly_chart(fig, use_container_width=True)
+            st.dataframe(corr_matrix)
+        
+        st.subheader("📋 Descriptive Statistics")
+        st.dataframe(analyzer.descriptive_stats())
+    else:
+        st.info("Load a dataset first")
+
+# Tab 7: 3D Visualization
+with tab7:
+    st.header("🎨 3D Visualization")
+    
+    if st.session_state.df is not None:
+        from modules.visualization_3d import Visualizer3D
+        
+        df = st.session_state.df
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        
+        if len(numeric_cols) >= 3:
+            viz_3d = Visualizer3D(df)
+            
+            viz_type = st.selectbox("Select visualization type", [
+                "3D Scatter Plot",
+                "3D Surface Plot",
+                "3D PCA",
+                "3D Bubble Chart"
+            ])
+            
+            if viz_type == "3D Scatter Plot":
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    x_col = st.selectbox("X-axis", numeric_cols, key="3d_x")
+                with col2:
+                    y_col = st.selectbox("Y-axis", numeric_cols, key="3d_y")
+                with col3:
+                    z_col = st.selectbox("Z-axis", numeric_cols, key="3d_z")
+                
+                if st.button("Generate 3D Scatter"):
+                    fig = viz_3d.scatter_3d(x_col, y_col, z_col)
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            elif viz_type == "3D Surface Plot":
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    x_col = st.selectbox("X-axis", numeric_cols, key="surf_x")
+                with col2:
+                    y_col = st.selectbox("Y-axis", numeric_cols, key="surf_y")
+                with col3:
+                    z_col = st.selectbox("Z-axis (values)", numeric_cols, key="surf_z")
+                
+                if st.button("Generate Surface Plot"):
+                    fig = viz_3d.surface_plot(x_col, y_col, z_col)
+                    st.plotly_chart(fig, use_container_width=True)
+            
+            elif viz_type == "3D PCA":
+                if st.button("Generate 3D PCA"):
+                    fig, variance = viz_3d.pca_3d()
+                    if fig:
+                        st.plotly_chart(fig, use_container_width=True)
+                        st.write("Explained Variance Ratio:", variance)
+            
+            elif viz_type == "3D Bubble Chart":
+                col1, col2, col3, col4 = st.columns(4)
+                with col1:
+                    x_col = st.selectbox("X-axis", numeric_cols, key="bubble_x")
+                with col2:
+                    y_col = st.selectbox("Y-axis", numeric_cols, key="bubble_y")
+                with col3:
+                    z_col = st.selectbox("Z-axis", numeric_cols, key="bubble_z")
+                with col4:
+                    size_col = st.selectbox("Size", numeric_cols, key="bubble_size")
+                
+                if st.button("Generate Bubble Chart"):
+                    fig = viz_3d.bubble_3d(x_col, y_col, z_col, size_col)
+                    st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("Need at least 3 numeric columns for 3D visualization")
+    else:
+        st.info("Load a dataset first")
+
+# Tab 8: Data Processing
+with tab8:
+    st.header("🧹 Advanced Data Processing")
+    
+    if st.session_state.df is not None:
+        from modules.data_processing import DataProcessor
+        
+        df = st.session_state.df
+        processor = DataProcessor(df)
+        
+        process_type = st.selectbox("Select processing task", [
+            "Missing Value Analysis",
+            "Handle Duplicates",
+            "Encode Categorical",
+            "Scale Features",
+            "Handle Outliers",
+            "Balance Dataset",
+            "Data Quality Score"
+        ])
+        
+        if process_type == "Missing Value Analysis":
+            st.subheader("Missing Values")
+            missing_df = processor.missing_value_analysis()
+            if len(missing_df) > 0:
+                st.dataframe(missing_df)
+            else:
+                st.success("✅ No missing values found!")
+        
+        elif process_type == "Handle Duplicates":
+            duplicates = df.duplicated().sum()
+            st.write(f"Found {duplicates} duplicate rows")
+            if st.button("Remove Duplicates"):
+                df_clean, count = processor.handle_duplicates()
+                st.session_state.df = df_clean
+                st.success(f"✅ Removed {count} duplicates")
+        
+        elif process_type == "Encode Categorical":
+            cat_cols = df.select_dtypes(include=['object']).columns.tolist()
+            if cat_cols:
+                selected_cols = st.multiselect("Select columns to encode", cat_cols)
+                method = st.selectbox("Encoding method", ["label", "onehot"])
+                if st.button("Encode"):
+                    df_encoded = processor.encode_categorical(selected_cols, method)
+                    st.session_state.df = df_encoded
+                    st.success("✅ Encoding complete")
+            else:
+                st.info("No categorical columns found")
+        
+        elif process_type == "Scale Features":
+            numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+            selected_cols = st.multiselect("Select columns to scale", numeric_cols)
+            method = st.selectbox("Scaling method", ["standard", "minmax"])
+            if st.button("Scale"):
+                df_scaled = processor.scale_features(selected_cols, method)
+                st.session_state.df = df_scaled
+                st.success("✅ Scaling complete")
+        
+        elif process_type == "Handle Outliers":
+            numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+            selected_cols = st.multiselect("Select columns", numeric_cols)
+            method = st.selectbox("Method", ["iqr", "zscore"])
+            threshold = st.slider("Threshold", 1.0, 5.0, 1.5)
+            if st.button("Handle Outliers"):
+                df_clean, count = processor.handle_outliers(selected_cols, method, threshold)
+                st.session_state.df = df_clean
+                st.success(f"✅ Handled {count} outliers")
+        
+        elif process_type == "Balance Dataset":
+            target_col = st.selectbox("Target column", df.columns)
+            method = st.selectbox("Method", ["smote", "undersample"])
+            if st.button("Balance"):
+                df_balanced = processor.balance_dataset(target_col, method)
+                st.session_state.df = df_balanced
+                st.success("✅ Dataset balanced")
+        
+        elif process_type == "Data Quality Score":
+            score = processor.get_data_quality_score()
+            st.metric("Data Quality Score", f"{score:.2f}%")
+    else:
+        st.info("Load a dataset first")
+
+# Tab 9: Anomaly Detection
+with tab9:
+    st.header("🎯 Anomaly Detection")
+    
+    if st.session_state.df is not None:
+        from modules.anomaly_detection import AnomalyDetector
+        
+        df = st.session_state.df
+        detector = AnomalyDetector(df)
+        
+        anomaly_type = st.selectbox("Detection method", [
+            "Isolation Forest",
+            "Statistical (Z-score)",
+            "Statistical (IQR)"
+        ])
+        
+        if anomaly_type == "Isolation Forest":
+            contamination = st.slider("Contamination rate", 0.01, 0.5, 0.1)
+            if st.button("Detect Anomalies"):
+                df_anomaly, anomalies = detector.isolation_forest(contamination)
+                st.session_state.df = df_anomaly
+                
+                summary = detector.get_anomaly_summary()
+                st.dataframe(summary)
+                
+                numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+                if len(numeric_cols) >= 2:
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        x_col = st.selectbox("X-axis", numeric_cols, key="anom_x")
+                    with col2:
+                        y_col = st.selectbox("Y-axis", numeric_cols, key="anom_y")
+                    
+                    fig = detector.visualize_anomalies(x_col, y_col)
+                    st.plotly_chart(fig, use_container_width=True)
+        
+        elif anomaly_type == "Statistical (Z-score)":
+            threshold = st.slider("Z-score threshold", 1.0, 5.0, 3.0)
+            if st.button("Detect Anomalies"):
+                df_anomaly, anomalies = detector.statistical_anomalies('zscore', threshold)
+                st.session_state.df = df_anomaly
+                
+                summary = detector.get_anomaly_summary()
+                st.dataframe(summary)
+        
+        elif anomaly_type == "Statistical (IQR)":
+            if st.button("Detect Anomalies"):
+                df_anomaly, anomalies = detector.statistical_anomalies('iqr')
+                st.session_state.df = df_anomaly
+                
+                summary = detector.get_anomaly_summary()
+                st.dataframe(summary)
+    else:
+        st.info("Load a dataset first")
 
 # Footer
 st.divider()
