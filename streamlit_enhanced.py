@@ -155,14 +155,12 @@ st.markdown("<p style='text-align: center; color: gray;'>Your Personal AI Data S
             unsafe_allow_html=True)
 
 # Tabs
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
     "🔍 Dataset Search", 
     "📊 Auto EDA", 
     "🤖 Auto ML", 
     "💬 AI Chat", 
     "📄 Reports",
-    "📈 Advanced Statistics",
-    "🎨 3D Visualization",
     "🧹 Data Processing",
     "🎯 Anomaly Detection"
 ])
@@ -825,7 +823,104 @@ with tab2:
                 
                 st.success("✅ EDA Complete!")
                 
+                # Advanced Statistics Section
+                st.divider()
+                st.subheader("📈 Advanced Statistical Analysis")
+                
+                adv_stat_col1, adv_stat_col2 = st.columns(2)
+                
+                with adv_stat_col1:
+                    if st.button("📊 Run Normality Tests", use_container_width=True):
+                        from modules.statistical_analysis import StatisticalAnalyzer
+                        analyzer = StatisticalAnalyzer(df)
+                        results = analyzer.normality_tests()
+                        if results:
+                            st.dataframe(pd.DataFrame(results).T)
+                        else:
+                            st.info("No numeric columns for normality tests")
+                
+                with adv_stat_col2:
+                    if st.button("🔗 Correlation Network", use_container_width=True):
+                        from modules.correlation_network import CorrelationNetwork
+                        threshold = st.slider("Correlation threshold", 0.1, 1.0, 0.5, key="corr_threshold")
+                        corr_net = CorrelationNetwork(df, threshold)
+                        fig, G = corr_net.create_network()
+                        st.plotly_chart(fig, use_container_width=True)
+                
+                # 3D Visualization Section
+                st.divider()
+                st.subheader("🎨 3D Visualization")
+                
+                numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+                
+                if len(numeric_cols) >= 3:
+                    viz_3d_type = st.selectbox("Select 3D visualization", [
+                        "3D Scatter Plot",
+                        "3D Surface Plot",
+                        "3D PCA",
+                        "3D Bubble Chart"
+                    ], key="viz_3d_type")
+                    
+                    if viz_3d_type == "3D Scatter Plot":
+                        from modules.visualization_3d import Visualizer3D
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            x_col = st.selectbox("X-axis", numeric_cols, key="3d_x_eda")
+                        with col2:
+                            y_col = st.selectbox("Y-axis", numeric_cols, key="3d_y_eda")
+                        with col3:
+                            z_col = st.selectbox("Z-axis", numeric_cols, key="3d_z_eda")
+                        
+                        if st.button("Generate 3D Scatter", use_container_width=True):
+                            viz_3d = Visualizer3D(df)
+                            fig = viz_3d.scatter_3d(x_col, y_col, z_col)
+                            st.plotly_chart(fig, use_container_width=True)
+                    
+                    elif viz_3d_type == "3D Surface Plot":
+                        from modules.visualization_3d import Visualizer3D
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            x_col = st.selectbox("X-axis", numeric_cols, key="surf_x_eda")
+                        with col2:
+                            y_col = st.selectbox("Y-axis", numeric_cols, key="surf_y_eda")
+                        with col3:
+                            z_col = st.selectbox("Z-axis (values)", numeric_cols, key="surf_z_eda")
+                        
+                        if st.button("Generate Surface Plot", use_container_width=True):
+                            viz_3d = Visualizer3D(df)
+                            fig = viz_3d.surface_plot(x_col, y_col, z_col)
+                            st.plotly_chart(fig, use_container_width=True)
+                    
+                    elif viz_3d_type == "3D PCA":
+                        if st.button("Generate 3D PCA", use_container_width=True):
+                            from modules.visualization_3d import Visualizer3D
+                            viz_3d = Visualizer3D(df)
+                            fig, variance = viz_3d.pca_3d()
+                            if fig:
+                                st.plotly_chart(fig, use_container_width=True)
+                                st.write("**Explained Variance Ratio:**", variance)
+                    
+                    elif viz_3d_type == "3D Bubble Chart":
+                        from modules.visualization_3d import Visualizer3D
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            x_col = st.selectbox("X-axis", numeric_cols, key="bubble_x_eda")
+                        with col2:
+                            y_col = st.selectbox("Y-axis", numeric_cols, key="bubble_y_eda")
+                        with col3:
+                            z_col = st.selectbox("Z-axis", numeric_cols, key="bubble_z_eda")
+                        with col4:
+                            size_col = st.selectbox("Size", numeric_cols, key="bubble_size_eda")
+                        
+                        if st.button("Generate Bubble Chart", use_container_width=True):
+                            viz_3d = Visualizer3D(df)
+                            fig = viz_3d.bubble_3d(x_col, y_col, z_col, size_col)
+                            st.plotly_chart(fig, use_container_width=True)
+                else:
+                    st.info("Need at least 3 numeric columns for 3D visualization")
+                
                 # Data Preview
+                st.divider()
                 st.subheader("👀 Data Preview")
                 st.dataframe(df.head(10))
         
@@ -1195,117 +1290,8 @@ plt.show()
     else:
         st.info("Load a dataset to generate reports")
 
-# Tab 6: Advanced Statistics
+# Tab 6: Data Processing
 with tab6:
-    st.header("📈 Advanced Statistical Analysis")
-    
-    if st.session_state.df is not None:
-        from modules.statistical_analysis import StatisticalAnalyzer
-        
-        df = st.session_state.df
-        analyzer = StatisticalAnalyzer(df)
-        
-        stat_col1, stat_col2 = st.columns(2)
-        
-        with stat_col1:
-            st.subheader("📊 Normality Tests")
-            if st.button("Run Normality Tests"):
-                results = analyzer.normality_tests()
-                st.dataframe(pd.DataFrame(results).T)
-        
-        with stat_col2:
-            st.subheader("📉 Distribution Analysis")
-            numeric_cols = df.select_dtypes(include=[np.number]).columns
-            selected_col = st.selectbox("Select column", numeric_cols, key="dist_col")
-            if st.button("Analyze Distribution"):
-                fig = analyzer.distribution_analysis(selected_col)
-                st.plotly_chart(fig, use_container_width=True)
-        
-        st.subheader("🔗 Correlation Analysis")
-        if st.button("Generate Correlation Matrix"):
-            fig, corr_matrix = analyzer.correlation_analysis()
-            st.plotly_chart(fig, use_container_width=True)
-            st.dataframe(corr_matrix)
-        
-        st.subheader("📋 Descriptive Statistics")
-        st.dataframe(analyzer.descriptive_stats())
-    else:
-        st.info("Load a dataset first")
-
-# Tab 7: 3D Visualization
-with tab7:
-    st.header("🎨 3D Visualization")
-    
-    if st.session_state.df is not None:
-        from modules.visualization_3d import Visualizer3D
-        
-        df = st.session_state.df
-        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-        
-        if len(numeric_cols) >= 3:
-            viz_3d = Visualizer3D(df)
-            
-            viz_type = st.selectbox("Select visualization type", [
-                "3D Scatter Plot",
-                "3D Surface Plot",
-                "3D PCA",
-                "3D Bubble Chart"
-            ])
-            
-            if viz_type == "3D Scatter Plot":
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    x_col = st.selectbox("X-axis", numeric_cols, key="3d_x")
-                with col2:
-                    y_col = st.selectbox("Y-axis", numeric_cols, key="3d_y")
-                with col3:
-                    z_col = st.selectbox("Z-axis", numeric_cols, key="3d_z")
-                
-                if st.button("Generate 3D Scatter"):
-                    fig = viz_3d.scatter_3d(x_col, y_col, z_col)
-                    st.plotly_chart(fig, use_container_width=True)
-            
-            elif viz_type == "3D Surface Plot":
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    x_col = st.selectbox("X-axis", numeric_cols, key="surf_x")
-                with col2:
-                    y_col = st.selectbox("Y-axis", numeric_cols, key="surf_y")
-                with col3:
-                    z_col = st.selectbox("Z-axis (values)", numeric_cols, key="surf_z")
-                
-                if st.button("Generate Surface Plot"):
-                    fig = viz_3d.surface_plot(x_col, y_col, z_col)
-                    st.plotly_chart(fig, use_container_width=True)
-            
-            elif viz_type == "3D PCA":
-                if st.button("Generate 3D PCA"):
-                    fig, variance = viz_3d.pca_3d()
-                    if fig:
-                        st.plotly_chart(fig, use_container_width=True)
-                        st.write("Explained Variance Ratio:", variance)
-            
-            elif viz_type == "3D Bubble Chart":
-                col1, col2, col3, col4 = st.columns(4)
-                with col1:
-                    x_col = st.selectbox("X-axis", numeric_cols, key="bubble_x")
-                with col2:
-                    y_col = st.selectbox("Y-axis", numeric_cols, key="bubble_y")
-                with col3:
-                    z_col = st.selectbox("Z-axis", numeric_cols, key="bubble_z")
-                with col4:
-                    size_col = st.selectbox("Size", numeric_cols, key="bubble_size")
-                
-                if st.button("Generate Bubble Chart"):
-                    fig = viz_3d.bubble_3d(x_col, y_col, z_col, size_col)
-                    st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.warning("Need at least 3 numeric columns for 3D visualization")
-    else:
-        st.info("Load a dataset first")
-
-# Tab 8: Data Processing
-with tab8:
     st.header("🧹 Advanced Data Processing")
     
     if st.session_state.df is not None:
@@ -1389,8 +1375,8 @@ with tab8:
     else:
         st.info("Load a dataset first")
 
-# Tab 9: Anomaly Detection
-with tab9:
+# Tab 7: Anomaly Detection
+with tab7:
     st.header("🎯 Anomaly Detection")
     
     if st.session_state.df is not None:
