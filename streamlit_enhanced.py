@@ -1187,26 +1187,26 @@ with tab5:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.markdown("### 📄 Ultra-Comprehensive PDF Report")
-            st.write("COMPLETE analysis with ALL statistics, visualizations, distributions, correlations & insights")
-            if st.button("📊 Generate ULTRA-COMPREHENSIVE PDF", use_container_width=True, type="primary"):
-                with st.spinner("🔄 Generating ultra-comprehensive PDF report with ALL visualizations... This may take a moment"):
+            st.markdown("### 📄 Full EDA PDF Report with ALL Charts & Graphs")
+            st.write("COMPLETE analysis with ALL CHARTS: Missing Data, Distributions, Box Plots, Correlations, Categorical, Pairplots, Violin Plots & Statistics")
+            if st.button("📊 Generate FULL EDA PDF with ALL CHARTS", use_container_width=True, type="primary"):
+                with st.spinner("🔄 Generating Full EDA PDF with ALL CHARTS and GRAPHS... This may take a moment"):
                     try:
-                        from modules.comprehensive_pdf_report import UltraComprehensivePDFReport
+                        from modules.full_eda_pdf_report import FullEDAPDFReport
                         
-                        # Generate ultra-comprehensive PDF
-                        pdf_gen = UltraComprehensivePDFReport(df, st.session_state.selected_dataset or "Dataset")
+                        # Generate full EDA PDF
+                        pdf_gen = FullEDAPDFReport(df, st.session_state.selected_dataset or "Dataset")
                         pdf_bytes = pdf_gen.generate_report()
                         
                         # Success message
-                        st.success("✅ ULTRA-COMPREHENSIVE PDF Report Generated Successfully!")
-                        st.info("📊 Report includes: Executive Summary, ALL Distributions, Detailed Correlations, Categorical Analysis, Statistical Tests, Normality Tests, Skewness/Kurtosis, Outlier Detection, Missing Data Analysis & Recommendations")
+                        st.success("✅ Full EDA PDF Report Generated Successfully!")
+                        st.info("📊 Report includes: Missing Data Charts, Distribution Plots, Box Plots, Correlation Heatmap, Categorical Charts, Pairplots, Violin Plots, Density Plots, Skewness/Kurtosis Charts & Summary Statistics")
                         
                         # Download button
                         st.download_button(
-                            label="📥 Download ULTRA-COMPREHENSIVE PDF Report",
+                            label="📥 Download Full EDA PDF with ALL CHARTS",
                             data=pdf_bytes,
-                            file_name=f"ultra_comprehensive_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                            file_name=f"full_eda_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
                             mime="application/pdf",
                             use_container_width=True
                         )
