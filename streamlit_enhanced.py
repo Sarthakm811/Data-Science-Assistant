@@ -1187,26 +1187,26 @@ with tab5:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.markdown("### 📄 Comprehensive PDF Report")
-            st.write("Complete analysis with all statistics, visualizations & insights")
-            if st.button("📊 Generate Comprehensive PDF", use_container_width=True, type="primary"):
-                with st.spinner("🔄 Generating comprehensive PDF report... This may take a moment"):
+            st.markdown("### 📄 Ultra-Comprehensive PDF Report")
+            st.write("COMPLETE analysis with ALL statistics, visualizations, distributions, correlations & insights")
+            if st.button("📊 Generate ULTRA-COMPREHENSIVE PDF", use_container_width=True, type="primary"):
+                with st.spinner("🔄 Generating ultra-comprehensive PDF report with ALL visualizations... This may take a moment"):
                     try:
-                        from modules.pdf_report_generator import ComprehensivePDFReport
+                        from modules.comprehensive_pdf_report import UltraComprehensivePDFReport
                         
-                        # Generate comprehensive PDF
-                        pdf_gen = ComprehensivePDFReport(df, st.session_state.selected_dataset or "Dataset")
+                        # Generate ultra-comprehensive PDF
+                        pdf_gen = UltraComprehensivePDFReport(df, st.session_state.selected_dataset or "Dataset")
                         pdf_bytes = pdf_gen.generate_report()
                         
                         # Success message
-                        st.success("✅ Comprehensive PDF Report Generated Successfully!")
-                        st.info("📊 Report includes: Dataset Overview, Data Quality, Missing Values, Statistics, Correlations, Statistical Tests, Outlier Detection & Recommendations")
+                        st.success("✅ ULTRA-COMPREHENSIVE PDF Report Generated Successfully!")
+                        st.info("📊 Report includes: Executive Summary, ALL Distributions, Detailed Correlations, Categorical Analysis, Statistical Tests, Normality Tests, Skewness/Kurtosis, Outlier Detection, Missing Data Analysis & Recommendations")
                         
                         # Download button
                         st.download_button(
-                            label="📥 Download Comprehensive PDF Report",
+                            label="📥 Download ULTRA-COMPREHENSIVE PDF Report",
                             data=pdf_bytes,
-                            file_name=f"comprehensive_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                            file_name=f"ultra_comprehensive_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
                             mime="application/pdf",
                             use_container_width=True
                         )
