@@ -8,3 +8,4 @@ startCommand = "streamlit run streamlit_enhanced.py --server.port=$PORT --server
 STREAMLIT_SERVER_HEADLESS = "true"
 STREAMLIT_SERVER_PORT = "8000"
 STREAMLIT_CLIENT_TOOLBAR_MODE = "minimal"
+
