@@ -1,4 +1,4 @@
-"""Comprehensive PDF Report Generator"""
+"""Comprehensive PDF Report Generator with Full EDA"""
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,6 +11,9 @@ from reportlab.lib.units import inch
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
+import plotly.graph_objects as go
+import plotly.express as px
+from scipy import stats
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -405,8 +408,205 @@ class ComprehensivePDFReport:
         
         self.story.append(Spacer(1, 0.3*inch))
     
+    def _add_distribution_visualizations(self):
+        """Add distribution plots for numeric columns"""
+        self.story.append(PageBreak())
+        self.story.append(Paragraph("10. Distribution Analysis", self.styles['CustomHeading']))
+        self.story.append(Spacer(1, 0.2*inch))
+        
+        numeric_cols = self.df.select_dtypes(include=[np.number]).columns
+        
+        for col in numeric_cols[:4]:  # Limit to first 4 columns
+            try:
+                fig, ax = plt.subplots(figsize=(6, 4))
+                self.df[col].hist(bins=30, ax=ax, edgecolor='black', alpha=0.7)
+                ax.set_title(f'Distribution: {col}')
+                ax.set_xlabel(col)
+                ax.set_ylabel('Frequency')
+                
+                img_buffer = io.BytesIO()
+                fig.savefig(img_buffer, format='png', dpi=100, bbox_inches='tight')
+                img_buffer.seek(0)
+                plt.close(fig)
+                
+                img = Image(img_buffer, width=3.5*inch, height=2.5*inch)
+                self.story.append(img)
+                self.story.append(Spacer(1, 0.2*inch))
+            except:
+                pass
+    
+    def _add_box_plots(self):
+        """Add box plots for outlier visualization"""
+        self.story.append(PageBreak())
+        self.story.append(Paragraph("11. Box Plot Analysis (Outlier Detection)", self.styles['CustomHeading']))
+        self.story.append(Spacer(1, 0.2*inch))
+        
+        numeric_cols = self.df.select_dtypes(include=[np.number]).columns
+        
+        try:
+            fig, axes = plt.subplots(2, 2, figsize=(10, 8))
+            axes = axes.flatten()
+            
+            for idx, col in enumerate(numeric_cols[:4]):
+                axes[idx].boxplot(self.df[col].dropna())
+                axes[idx].set_title(f'Box Plot: {col}')
+                axes[idx].set_ylabel(col)
+            
+            plt.tight_layout()
+            img_buffer = io.BytesIO()
+            fig.savefig(img_buffer, format='png', dpi=100, bbox_inches='tight')
+            img_buffer.seek(0)
+            plt.close(fig)
+            
+            img = Image(img_buffer, width=5*inch, height=4*inch)
+            self.story.append(img)
+        except:
+            pass
+        
+        self.story.append(Spacer(1, 0.3*inch))
+    
+    def _add_pairplot_analysis(self):
+        """Add pairplot for relationship analysis"""
+        self.story.append(PageBreak())
+        self.story.append(Paragraph("12. Relationship Analysis (Pairplot)", self.styles['CustomHeading']))
+        self.story.append(Spacer(1, 0.2*inch))
+        
+        numeric_cols = self.df.select_dtypes(include=[np.number]).columns
+        
+        if len(numeric_cols) >= 2:
+            try:
+                # Create a subset for pairplot (limit to 4 columns to avoid too large plot)
+                subset_cols = numeric_cols[:4]
+                fig = sns.pairplot(self.df[subset_cols], diag_kind='hist', plot_kws={'alpha': 0.6})
+                
+                img_buffer = io.BytesIO()
+                fig.savefig(img_buffer, format='png', dpi=100, bbox_inches='tight')
+                img_buffer.seek(0)
+                plt.close(fig)
+                
+                img = Image(img_buffer, width=5.5*inch, height=5.5*inch)
+                self.story.append(img)
+            except:
+                self.story.append(Paragraph("Pairplot could not be generated", self.styles['Normal']))
+        
+        self.story.append(Spacer(1, 0.3*inch))
+    
+    def _add_skewness_kurtosis(self):
+        """Add skewness and kurtosis analysis"""
+        self.story.append(PageBreak())
+        self.story.append(Paragraph("13. Skewness & Kurtosis Analysis", self.styles['CustomHeading']))
+        self.story.append(Spacer(1, 0.2*inch))
+        
+        numeric_cols = self.df.select_dtypes(include=[np.number]).columns
+        
+        skew_kurt_data = []
+        for col in numeric_cols[:8]:  # Limit to first 8 columns
+            skewness = self.df[col].skew()
+            kurtosis = self.df[col].kurtosis()
+            skew_kurt_data.append([col, f"{skewness:.4f}", f"{kurtosis:.4f}"])
+        
+        if skew_kurt_data:
+            data = [['Column', 'Skewness', 'Kurtosis']] + skew_kurt_data
+            table = Table(data, colWidths=[2*inch, 1.5*inch, 1.5*inch])
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 9),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            self.story.append(table)
+        
+        self.story.append(Spacer(1, 0.3*inch))
+    
+    def _add_categorical_analysis(self):
+        """Add categorical variable analysis"""
+        self.story.append(PageBreak())
+        self.story.append(Paragraph("14. Categorical Variables Analysis", self.styles['CustomHeading']))
+        self.story.append(Spacer(1, 0.2*inch))
+        
+        cat_cols = self.df.select_dtypes(include=['object']).columns
+        
+        if len(cat_cols) > 0:
+            for col in cat_cols[:3]:  # Limit to first 3 categorical columns
+                try:
+                    fig, ax = plt.subplots(figsize=(8, 4))
+                    value_counts = self.df[col].value_counts().head(10)
+                    value_counts.plot(kind='bar', ax=ax, color='steelblue')
+                    ax.set_title(f'Value Counts: {col}')
+                    ax.set_xlabel(col)
+                    ax.set_ylabel('Count')
+                    plt.xticks(rotation=45, ha='right')
+                    
+                    img_buffer = io.BytesIO()
+                    fig.savefig(img_buffer, format='png', dpi=100, bbox_inches='tight')
+                    img_buffer.seek(0)
+                    plt.close(fig)
+                    
+                    img = Image(img_buffer, width=4.5*inch, height=2.5*inch)
+                    self.story.append(img)
+                    self.story.append(Spacer(1, 0.2*inch))
+                except:
+                    pass
+        else:
+            self.story.append(Paragraph("No categorical variables found", self.styles['Normal']))
+        
+        self.story.append(Spacer(1, 0.3*inch))
+    
+    def _add_summary_insights(self):
+        """Add summary insights and key findings"""
+        self.story.append(PageBreak())
+        self.story.append(Paragraph("15. Key Insights & Summary", self.styles['CustomHeading']))
+        self.story.append(Spacer(1, 0.2*inch))
+        
+        insights = []
+        
+        # Dataset size insight
+        insights.append(f"<b>Dataset Size:</b> {self.df.shape[0]} rows and {self.df.shape[1]} columns")
+        
+        # Missing data insight
+        missing_pct = (self.df.isnull().sum().sum() / (len(self.df) * len(self.df.columns))) * 100
+        if missing_pct == 0:
+            insights.append("<b>Data Completeness:</b> ✅ No missing values detected")
+        else:
+            insights.append(f"<b>Data Completeness:</b> ⚠️ {missing_pct:.2f}% missing data")
+        
+        # Numeric columns insight
+        numeric_cols = self.df.select_dtypes(include=[np.number]).columns
+        insights.append(f"<b>Numeric Columns:</b> {len(numeric_cols)} columns")
+        
+        # Categorical columns insight
+        cat_cols = self.df.select_dtypes(include=['object']).columns
+        insights.append(f"<b>Categorical Columns:</b> {len(cat_cols)} columns")
+        
+        # Duplicates insight
+        duplicates = self.df.duplicated().sum()
+        if duplicates == 0:
+            insights.append("<b>Duplicates:</b> ✅ No duplicate rows found")
+        else:
+            insights.append(f"<b>Duplicates:</b> ⚠️ {duplicates} duplicate rows detected")
+        
+        # Correlation insight
+        if len(numeric_cols) > 1:
+            corr_matrix = self.df[numeric_cols].corr()
+            high_corr = []
+            for i in range(len(corr_matrix.columns)):
+                for j in range(i+1, len(corr_matrix.columns)):
+                    if abs(corr_matrix.iloc[i, j]) > 0.8:
+                        high_corr.append(f"{corr_matrix.columns[i]} ↔ {corr_matrix.columns[j]}")
+            
+            if high_corr:
+                insights.append(f"<b>High Correlations:</b> Found {len(high_corr)} highly correlated pairs")
+        
+        for insight in insights:
+            self.story.append(Paragraph(insight, self.styles['Normal']))
+            self.story.append(Spacer(1, 0.15*inch))
+        
+        self.story.append(Spacer(1, 0.3*inch))
+    
     def generate_report(self):
-        """Generate complete PDF report"""
+        """Generate complete PDF report with all EDA visualizations"""
         self._create_title_page()
         self._add_table_of_contents()
         self._add_dataset_overview()
@@ -417,6 +617,12 @@ class ComprehensivePDFReport:
         self._add_correlation_analysis()
         self._add_statistical_tests()
         self._add_outlier_detection()
+        self._add_distribution_visualizations()
+        self._add_box_plots()
+        self._add_pairplot_analysis()
+        self._add_skewness_kurtosis()
+        self._add_categorical_analysis()
+        self._add_summary_insights()
         self._add_recommendations()
         
         # Create PDF

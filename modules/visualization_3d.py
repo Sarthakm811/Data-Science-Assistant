@@ -29,28 +29,50 @@ class Visualizer3D:
     
     def surface_plot(self, x_col, y_col, z_col):
         """Create 3D surface plot"""
-        pivot_data = self.df.pivot_table(
-            values=z_col,
-            index=y_col,
-            columns=x_col,
-            aggfunc='mean'
-        )
-        
-        fig = go.Figure(data=[go.Surface(
-            z=pivot_data.values,
-            x=pivot_data.columns,
-            y=pivot_data.index
-        )])
-        fig.update_layout(
-            title=f'3D Surface: {z_col}',
-            height=700,
-            scene=dict(
-                xaxis_title=x_col,
-                yaxis_title=y_col,
-                zaxis_title=z_col
+        try:
+            # Try to create pivot table with binning for continuous data
+            df_temp = self.df[[x_col, y_col, z_col]].dropna()
+            
+            # Bin the continuous variables to create a grid
+            x_bins = pd.cut(df_temp[x_col], bins=10)
+            y_bins = pd.cut(df_temp[y_col], bins=10)
+            
+            pivot_data = df_temp.groupby([y_bins, x_bins])[z_col].mean().unstack()
+            
+            fig = go.Figure(data=[go.Surface(
+                z=pivot_data.values,
+                x=range(len(pivot_data.columns)),
+                y=range(len(pivot_data.index))
+            )])
+            fig.update_layout(
+                title=f'3D Surface: {z_col}',
+                height=700,
+                scene=dict(
+                    xaxis_title=x_col,
+                    yaxis_title=y_col,
+                    zaxis_title=z_col
+                )
             )
-        )
-        return fig
+            return fig
+        except Exception as e:
+            # Fallback: use scatter plot instead
+            fig = go.Figure(data=[go.Scatter3d(
+                x=self.df[x_col],
+                y=self.df[y_col],
+                z=self.df[z_col],
+                mode='markers',
+                marker=dict(size=4, color=self.df[z_col], colorscale='Viridis')
+            )])
+            fig.update_layout(
+                title=f'3D Scatter (Surface unavailable): {z_col}',
+                height=700,
+                scene=dict(
+                    xaxis_title=x_col,
+                    yaxis_title=y_col,
+                    zaxis_title=z_col
+                )
+            )
+            return fig
     
     def pca_3d(self):
         """3D PCA visualization"""
