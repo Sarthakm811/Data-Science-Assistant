@@ -1092,32 +1092,33 @@ with tab5:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            st.markdown("### 📄 PDF Report")
-            st.write("Comprehensive EDA report with charts and insights")
-            if st.button("📊 Generate PDF Report", use_container_width=True, type="primary"):
-                with st.spinner("🔄 Generating PDF report... This may take a moment"):
+            st.markdown("### 📄 Comprehensive PDF Report")
+            st.write("Complete analysis with all statistics, visualizations & insights")
+            if st.button("📊 Generate Comprehensive PDF", use_container_width=True, type="primary"):
+                with st.spinner("🔄 Generating comprehensive PDF report... This may take a moment"):
                     try:
-                        from backend.reports.pdf_generator import EDAPDFReport
+                        from modules.pdf_report_generator import ComprehensivePDFReport
                         
-                        # Generate PDF
-                        pdf_gen = EDAPDFReport(df, st.session_state.selected_dataset or "Dataset")
+                        # Generate comprehensive PDF
+                        pdf_gen = ComprehensivePDFReport(df, st.session_state.selected_dataset or "Dataset")
                         pdf_bytes = pdf_gen.generate_report()
                         
                         # Success message
-                        st.success("✅ PDF Report Generated Successfully!")
+                        st.success("✅ Comprehensive PDF Report Generated Successfully!")
+                        st.info("📊 Report includes: Dataset Overview, Data Quality, Missing Values, Statistics, Correlations, Statistical Tests, Outlier Detection & Recommendations")
                         
                         # Download button
                         st.download_button(
-                            label="📥 Download PDF Report",
+                            label="📥 Download Comprehensive PDF Report",
                             data=pdf_bytes,
-                            file_name=f"eda_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                            file_name=f"comprehensive_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
                             mime="application/pdf",
                             use_container_width=True
                         )
                         
                     except Exception as e:
                         st.error(f"❌ Error generating PDF: {str(e)}")
-                        st.info("💡 Make sure matplotlib and seaborn are installed")
+                        st.info("💡 Tip: Make sure all required packages are installed")
         
         with col2:
             st.markdown("### 📝 Markdown Report")
