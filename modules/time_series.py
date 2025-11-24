@@ -11,13 +11,13 @@ try:
     from statsmodels.tsa.arima.model import ARIMA
     from statsmodels.tsa.seasonal import seasonal_decompose
     STATSMODELS_AVAILABLE = True
-except:
+except ImportError:
     STATSMODELS_AVAILABLE = False
 
 try:
     from prophet import Prophet
     PROPHET_AVAILABLE = True
-except:
+except ImportError:
     PROPHET_AVAILABLE = False
 
 class TimeSeriesForecaster:

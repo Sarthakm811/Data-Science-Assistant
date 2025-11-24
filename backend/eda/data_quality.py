@@ -125,7 +125,7 @@ class DataQualityAnalyzer:
                 try:
                     pd.to_numeric(self.df[col].dropna(), errors="raise")
                     issues += 1  # Should be numeric but stored as string
-                except:
+                except (ValueError, TypeError):
                     pass
 
         consistency_score = 100 - (issues / self.n_cols * 100)
@@ -163,7 +163,7 @@ class DataQualityAnalyzer:
                 try:
                     pd.to_datetime(sample, errors="raise")
                     potential_dates += 1
-                except:
+                except (ValueError, TypeError, pd.errors.ParserError):
                     pass
 
             if potential_dates > 0:

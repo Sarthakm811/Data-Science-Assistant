@@ -139,8 +139,9 @@ class StatisticalAnalyzer:
                     "p_value": float(p_value),
                     "is_normal": p_value > 0.05,
                 }
-        except:
-            pass
+        except (ValueError, RuntimeError) as e:
+            import logging
+            logging.debug(f"Shapiro-Wilk test failed: {e}")
 
         # Kolmogorov-Smirnov test
         try:
@@ -150,8 +151,9 @@ class StatisticalAnalyzer:
                 "p_value": float(p_value),
                 "is_normal": p_value > 0.05,
             }
-        except:
-            pass
+        except (ValueError, RuntimeError) as e:
+            import logging
+            logging.debug(f"KS test failed: {e}")
 
         # D'Agostino-Pearson test
         try:
@@ -162,8 +164,9 @@ class StatisticalAnalyzer:
                     "p_value": float(p_value),
                     "is_normal": p_value > 0.05,
                 }
-        except:
-            pass
+        except (ValueError, RuntimeError) as e:
+            import logging
+            logging.debug(f"D'Agostino-Pearson test failed: {e}")
 
         return results
 

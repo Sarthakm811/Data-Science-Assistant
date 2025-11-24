@@ -123,7 +123,7 @@ with st.sidebar:
                     st.session_state.df = pd.read_csv(uploaded_file, encoding=encoding)
                     st.info(f"✓ File loaded with {encoding} encoding")
                     break
-                except:
+                except (UnicodeDecodeError, pd.errors.ParserError, ValueError):
                     continue
             else:
                 st.error("Could not decode file with any supported encoding")
@@ -232,7 +232,7 @@ with tab1:
                                         os.remove(old_file)
                                     elif os.path.isdir(old_file):
                                         shutil.rmtree(old_file)
-                                except:
+                                except (OSError, PermissionError):
                                     pass
                             
                             # Download dataset
@@ -259,7 +259,7 @@ with tab1:
                                             df_new = pd.read_csv(selected_file, encoding=encoding)
                                             st.info(f"✓ File loaded with {encoding} encoding")
                                             break
-                                        except:
+                                        except (UnicodeDecodeError, pd.errors.ParserError, ValueError):
                                             continue
                                     else:
                                         raise ValueError("Could not decode file with any supported encoding")

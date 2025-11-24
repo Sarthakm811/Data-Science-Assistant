@@ -272,7 +272,9 @@ class CorrelationAnalyzer:
                         "multicollinearity": self._vif_interpretation(vif),
                     }
                 )
-            except:
+            except (ValueError, RuntimeError, np.linalg.LinAlgError) as e:
+                import logging
+                logging.debug(f"VIF calculation failed for {col}: {e}")
                 continue
 
         return {

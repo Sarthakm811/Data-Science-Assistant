@@ -114,7 +114,7 @@ class StructuralAnalyzer:
         try:
             pd.to_datetime(sample, errors="raise")
             return True
-        except:
+        except (ValueError, TypeError, pd.errors.ParserError):
             return False
 
     def _is_category(self, series: pd.Series) -> bool:

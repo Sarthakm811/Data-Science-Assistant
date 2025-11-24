@@ -111,13 +111,16 @@ class MLReadinessAnalyzer:
 
             for i, col in enumerate(self.numeric_cols):
                 scores[col] = float(mi_scores[i])
-        except:
+        except (ValueError, TypeError, RuntimeError) as e:
             # Fallback to correlation
+            import logging
+            logging.warning(f"Mutual information calculation failed: {e}. Using correlation instead.")
             for col in self.numeric_cols:
                 try:
                     corr = abs(self.df[col].corr(y))
                     scores[col] = float(corr) if not np.isnan(corr) else 0.0
-                except:
+                except (ValueError, TypeError) as col_err:
+                    logging.debug(f"Failed to calculate correlation for {col}: {col_err}")
                     scores[col] = 0.0
 
         return scores
@@ -137,7 +140,9 @@ class MLReadinessAnalyzer:
                 else:
                     score = self._anova_score(col)
                 scores[col] = float(score)
-            except:
+            except (ValueError, TypeError) as e:
+                import logging
+                logging.debug(f"Failed to score categorical feature {col}: {e}")
                 scores[col] = 0.0
 
         return scores
