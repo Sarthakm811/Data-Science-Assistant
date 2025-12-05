@@ -1,133 +1,461 @@
-import React, { useState } from 'react'
-import { Search, Download, ExternalLink, Database } from 'lucide-react'
-
-// Mock datasets for demo
-const mockDatasets = [
-    { id: 'titanic', title: 'Titanic Dataset', size: '60 KB', downloads: '50K+' },
-    { id: 'iris', title: 'Iris Flower Dataset', size: '5 KB', downloads: '100K+' },
-    { id: 'housing', title: 'California Housing', size: '400 KB', downloads: '30K+' },
-    { id: 'mnist', title: 'MNIST Digits', size: '11 MB', downloads: '200K+' },
-]
+import React, { useState, useCallback } from 'react'
+import { Search, Download, Upload, Loader, AlertCircle, CheckCircle, Key, Settings, Eye, EyeOff } from 'lucide-react'
 
 function DatasetSearch({ setDataset }) {
-    const [ query, setQuery ] = useState('')
+    const [ searchQuery, setSearchQuery ] = useState('')
     const [ results, setResults ] = useState([])
     const [ loading, setLoading ] = useState(false)
-    const [ credentials, setCredentials ] = useState({ username: '', key: '' })
+    const [ downloading, setDownloading ] = useState(null)
+    const [ error, setError ] = useState(null)
+    const [ page, setPage ] = useState(1)
+    const [ selectedFile, setSelectedFile ] = useState(null)
+    const [ uploading, setUploading ] = useState(false)
+    const [ uploadError, setUploadError ] = useState(null)
+    const [ uploadSuccess, setUploadSuccess ] = useState(false)
 
-    const handleSearch = async () => {
-        if (!query) return
+    // Kaggle API credentials
+    const [ kaggleUsername, setKaggleUsername ] = useState(localStorage.getItem('kaggle_username') || '')
+    const [ kaggleKey, setKaggleKey ] = useState(localStorage.getItem('kaggle_key') || '')
+    const [ showKey, setShowKey ] = useState(false)
+    const [ showSettings, setShowSettings ] = useState(false)
+    const [ credentialsSaved, setCredentialsSaved ] = useState(false)
 
-        setLoading(true)
-        // Simulate API call
-        setTimeout(() => {
-            const filtered = mockDatasets.filter(d =>
-                d.title.toLowerCase().includes(query.toLowerCase())
-            )
-            setResults(filtered.length > 0 ? filtered : mockDatasets)
-            setLoading(false)
-        }, 1000)
+    // Save Kaggle credentials
+    const saveCredentials = () => {
+        localStorage.setItem('kaggle_username', kaggleUsername)
+        localStorage.setItem('kaggle_key', kaggleKey)
+        setCredentialsSaved(true)
+        setTimeout(() => setCredentialsSaved(false), 2000)
     }
 
-    const handleDownload = (dataset) => {
-        // Simulate download
-        alert(`Downloading ${dataset.title}... (Demo mode)`)
+    // Clear credentials
+    const clearCredentials = () => {
+        localStorage.removeItem('kaggle_username')
+        localStorage.removeItem('kaggle_key')
+        setKaggleUsername('')
+        setKaggleKey('')
+    }
+
+    // Search datasets on Kaggle
+    const handleSearch = useCallback(async (e) => {
+        e.preventDefault()
+        if (!searchQuery.trim()) {
+            setError('Please enter a search query')
+            return
+        }
+
+        setLoading(true)
+        setError(null)
+        setResults([])
+
+        try {
+            const response = await fetch('http://localhost:8000/api/kaggle/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    query: searchQuery,
+                    page,
+                    kaggle_username: kaggleUsername,
+                    kaggle_key: kaggleKey
+                })
+            })
+
+            if (!response.ok) throw new Error('Search failed')
+            const data = await response.json()
+            setResults(data.datasets || data || [])
+        } catch (err) {
+            setError(err.message || 'Failed to search datasets')
+        } finally {
+            setLoading(false)
+        }
+    }, [ searchQuery, page, kaggleUsername, kaggleKey ])
+
+    // Download dataset from Kaggle
+    const handleDownloadDataset = async (dataset) => {
+        if (!kaggleUsername || !kaggleKey) {
+            setError('Please configure your Kaggle API credentials first')
+            setShowSettings(true)
+            return
+        }
+
+        setDownloading(dataset.id)
+        setError(null)
+
+        try {
+            const response = await fetch('http://localhost:8000/api/kaggle/download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    dataset_ref: dataset.ref || dataset.id,
+                    kaggle_username: kaggleUsername,
+                    kaggle_key: kaggleKey
+                })
+            })
+
+            if (!response.ok) throw new Error('Download failed')
+            const data = await response.json()
+
+            if (data.headers && data.rows) {
+                setDataset(data)
+                setUploadSuccess(true)
+                setTimeout(() => setUploadSuccess(false), 3000)
+            } else {
+                throw new Error('Invalid dataset format')
+            }
+        } catch (err) {
+            setError(err.message || 'Failed to download dataset')
+        } finally {
+            setDownloading(null)
+        }
+    }
+
+    // Upload local file
+    const handleFileChange = (e) => {
+        const file = e.target.files[ 0 ]
+        if (file) {
+            if (!file.name.endsWith('.csv') && !file.name.endsWith('.xlsx')) {
+                setUploadError('Please select a CSV or XLSX file')
+                return
+            }
+            setSelectedFile(file)
+            setUploadError(null)
+        }
+    }
+
+    const handleUpload = async () => {
+        if (!selectedFile) {
+            setUploadError('Please select a file first')
+            return
+        }
+
+        setUploading(true)
+        setUploadError(null)
+
+        try {
+            const formData = new FormData()
+            formData.append('file', selectedFile)
+
+            const response = await fetch('http://localhost:8000/api/dataset/upload', {
+                method: 'POST',
+                body: formData
+            })
+
+            if (!response.ok) throw new Error('Upload failed')
+            const data = await response.json()
+
+            setDataset(data)
+            setSelectedFile(null)
+            setUploadSuccess(true)
+            setTimeout(() => setUploadSuccess(false), 3000)
+        } catch (err) {
+            setUploadError(err.message || 'Failed to upload dataset')
+        } finally {
+            setUploading(false)
+        }
     }
 
     return (
         <div className="space-y-6">
-            <div className="card">
-                <h1 className="text-2xl font-bold text-gray-800 mb-2">Search Kaggle Datasets</h1>
-                <p className="text-gray-500 mb-6">Find and download datasets from Kaggle</p>
-
-                {/* Credentials */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+            {/* Header */}
+            <div className="bg-white rounded-lg shadow p-6">
+                <div className="flex items-center justify-between">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Kaggle Username</label>
-                        <input
-                            type="text"
-                            value={credentials.username}
-                            onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
-                            className="input-field"
-                            placeholder="Enter username"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Kaggle API Key</label>
-                        <input
-                            type="password"
-                            value={credentials.key}
-                            onChange={(e) => setCredentials({ ...credentials, key: e.target.value })}
-                            className="input-field"
-                            placeholder="Enter API key"
-                        />
-                    </div>
-                </div>
-
-                {/* Search */}
-                <div className="flex gap-4">
-                    <div className="flex-1 relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                        <input
-                            type="text"
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                            className="input-field pl-10"
-                            placeholder="Search datasets (e.g., titanic, housing, iris)"
-                        />
+                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Dataset Search & Upload</h1>
+                        <p className="text-gray-600">Search Kaggle datasets or upload your own CSV/XLSX files</p>
                     </div>
                     <button
-                        onClick={handleSearch}
-                        disabled={loading}
-                        className="btn-primary"
+                        onClick={() => setShowSettings(!showSettings)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${showSettings ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
                     >
-                        {loading ? 'Searching...' : 'Search'}
+                        <Settings size={18} />
+                        Kaggle Settings
                     </button>
                 </div>
             </div>
 
-            {/* Results */}
-            {results.length > 0 && (
-                <div className="space-y-4">
-                    <h2 className="text-lg font-semibold text-gray-800">Search Results ({results.length})</h2>
+            {/* Kaggle API Settings */}
+            {showSettings && (
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg shadow p-6 border border-purple-200">
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="bg-purple-100 p-2 rounded-lg">
+                            <Key size={24} className="text-purple-600" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-semibold text-gray-900">Kaggle API Credentials</h2>
+                            <p className="text-sm text-gray-600">Enter your Kaggle username and API key to search and download datasets</p>
+                        </div>
+                    </div>
 
-                    {results.map((dataset) => (
-                        <div key={dataset.id} className="card flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <div className="bg-purple-100 p-3 rounded-lg">
-                                    <Database size={24} className="text-purple-600" />
-                                </div>
-                                <div>
-                                    <h3 className="font-semibold text-gray-800">{dataset.title}</h3>
-                                    <p className="text-sm text-gray-500">
-                                        Size: {dataset.size} • Downloads: {dataset.downloads}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-2">
-                                <a
-                                    href={`https://kaggle.com/datasets/${dataset.id}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="btn-secondary flex items-center gap-2"
-                                >
-                                    <ExternalLink size={16} />
-                                    View
-                                </a>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Kaggle Username
+                            </label>
+                            <input
+                                type="text"
+                                value={kaggleUsername}
+                                onChange={(e) => setKaggleUsername(e.target.value)}
+                                placeholder="your_kaggle_username"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Kaggle API Key
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type={showKey ? 'text' : 'password'}
+                                    value={kaggleKey}
+                                    onChange={(e) => setKaggleKey(e.target.value)}
+                                    placeholder="your_api_key"
+                                    className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                />
                                 <button
-                                    onClick={() => handleDownload(dataset)}
-                                    className="btn-primary flex items-center gap-2"
+                                    type="button"
+                                    onClick={() => setShowKey(!showKey)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                                 >
-                                    <Download size={16} />
-                                    Download
+                                    {showKey ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
                         </div>
-                    ))}
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                        <div className="flex gap-3">
+                            <button
+                                onClick={saveCredentials}
+                                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                            >
+                                <CheckCircle size={16} />
+                                Save Credentials
+                            </button>
+                            <button
+                                onClick={clearCredentials}
+                                className="px-4 py-2 text-gray-600 hover:text-red-600 transition"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                        {credentialsSaved && (
+                            <span className="text-green-600 text-sm flex items-center gap-1">
+                                <CheckCircle size={14} /> Saved!
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="mt-4 p-4 bg-white rounded-lg border border-purple-100">
+                        <h4 className="font-semibold text-gray-800 text-sm mb-2">How to get your Kaggle API Key:</h4>
+                        <ol className="text-sm text-gray-600 space-y-1 list-decimal list-inside">
+                            <li>Go to <a href="https://www.kaggle.com/settings" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">kaggle.com/settings</a></li>
+                            <li>Scroll to "API" section</li>
+                            <li>Click "Create New Token"</li>
+                            <li>Open the downloaded kaggle.json file</li>
+                            <li>Copy your username and key from the file</li>
+                        </ol>
+                    </div>
                 </div>
             )}
+
+            {/* Alerts */}
+            {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <h3 className="font-semibold text-red-900">Error</h3>
+                        <p className="text-red-700 text-sm">{error}</p>
+                    </div>
+                </div>
+            )}
+
+            {uploadSuccess && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+                    <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <h3 className="font-semibold text-green-900">Success</h3>
+                        <p className="text-green-700 text-sm">Dataset loaded successfully!</p>
+                    </div>
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Search Section */}
+                <div className="bg-white rounded-lg shadow p-6">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Search Kaggle Datasets</h2>
+
+                    {/* Credentials Status */}
+                    <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 text-sm ${kaggleUsername && kaggleKey
+                            ? 'bg-green-50 text-green-700 border border-green-200'
+                            : 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                        }`}>
+                        {kaggleUsername && kaggleKey ? (
+                            <>
+                                <CheckCircle size={16} />
+                                <span>Connected as <strong>{kaggleUsername}</strong></span>
+                            </>
+                        ) : (
+                            <>
+                                <AlertCircle size={16} />
+                                <span>Configure Kaggle API credentials above to enable search</span>
+                            </>
+                        )}
+                    </div>
+
+                    <form onSubmit={handleSearch} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Dataset Name or Keyword
+                            </label>
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                placeholder="e.g., titanic, housing, customer-churn, mnist"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                        </div>
+
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition"
+                        >
+                            {loading ? (
+                                <>
+                                    <Loader className="w-4 h-4 animate-spin" />
+                                    Searching...
+                                </>
+                            ) : (
+                                <>
+                                    <Search className="w-4 h-4" />
+                                    Search Kaggle
+                                </>
+                            )}
+                        </button>
+                    </form>
+
+                    {/* Search Results */}
+                    {results.length > 0 && (
+                        <div className="mt-6 space-y-3">
+                            <h3 className="font-semibold text-gray-900">Found {results.length} datasets</h3>
+                            <div className="max-h-96 overflow-y-auto space-y-3">
+                                {results.map((dataset, idx) => (
+                                    <div
+                                        key={dataset.id || idx}
+                                        className="border border-gray-200 rounded-lg p-4 hover:border-blue-400 transition"
+                                    >
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-semibold text-gray-900 truncate">{dataset.title || dataset.name}</h4>
+                                                <p className="text-sm text-gray-600 mt-1">
+                                                    {dataset.size && `Size: ${dataset.size}`}
+                                                    {dataset.downloads && ` • ${dataset.downloads} downloads`}
+                                                </p>
+                                                {dataset.ref && (
+                                                    <p className="text-xs text-gray-500 mt-1 truncate">{dataset.ref}</p>
+                                                )}
+                                            </div>
+                                            <button
+                                                onClick={() => handleDownloadDataset(dataset)}
+                                                disabled={downloading === dataset.id || !kaggleUsername || !kaggleKey}
+                                                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-400 whitespace-nowrap transition"
+                                            >
+                                                {downloading === dataset.id ? (
+                                                    <Loader className="w-4 h-4 animate-spin" />
+                                                ) : (
+                                                    <Download className="w-4 h-4" />
+                                                )}
+                                                {downloading === dataset.id ? 'Loading...' : 'Load'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Pagination */}
+                            <div className="flex gap-2 mt-4">
+                                <button
+                                    onClick={() => setPage(Math.max(1, page - 1))}
+                                    disabled={page === 1 || loading}
+                                    className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 transition"
+                                >
+                                    Previous
+                                </button>
+                                <span className="px-4 py-2 text-gray-600">Page {page}</span>
+                                <button
+                                    onClick={() => setPage(page + 1)}
+                                    disabled={loading}
+                                    className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 transition"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Upload Section */}
+                <div className="bg-white rounded-lg shadow p-6">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Upload Local Dataset</h2>
+                    <div className="space-y-4">
+                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition">
+                            <input
+                                type="file"
+                                onChange={handleFileChange}
+                                accept=".csv,.xlsx"
+                                className="hidden"
+                                id="file-input"
+                            />
+                            <label
+                                htmlFor="file-input"
+                                className="cursor-pointer inline-flex flex-col items-center gap-2"
+                            >
+                                <Upload className="w-8 h-8 text-gray-400" />
+                                <span className="text-sm font-medium text-gray-700">
+                                    {selectedFile ? selectedFile.name : 'Click to upload or drag and drop'}
+                                </span>
+                                <span className="text-xs text-gray-500">CSV or XLSX (max 100MB)</span>
+                            </label>
+                        </div>
+
+                        {uploadError && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
+                                <p className="text-red-700 text-sm">{uploadError}</p>
+                            </div>
+                        )}
+
+                        <button
+                            onClick={handleUpload}
+                            disabled={!selectedFile || uploading || loading}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 transition"
+                        >
+                            {uploading ? (
+                                <>
+                                    <Loader className="w-4 h-4 animate-spin" />
+                                    Uploading...
+                                </>
+                            ) : (
+                                <>
+                                    <Upload className="w-4 h-4" />
+                                    Upload Dataset
+                                </>
+                            )}
+                        </button>
+
+                        <div className="bg-blue-50 rounded-lg p-4">
+                            <h4 className="font-semibold text-blue-900 text-sm mb-2">Supported Formats</h4>
+                            <ul className="text-sm text-blue-800 space-y-1">
+                                <li>• CSV (.csv)</li>
+                                <li>• Excel (.xlsx, .xls)</li>
+                                <li>• Maximum file size: 100 MB</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     )
 }

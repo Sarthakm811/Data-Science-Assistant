@@ -8,7 +8,9 @@ import {
     MessageSquare,
     FileText,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    AlertTriangle,
+    TrendingUp
 } from 'lucide-react'
 
 const menuItems = [
@@ -16,6 +18,8 @@ const menuItems = [
     { path: '/search', icon: Search, label: 'Dataset Search' },
     { path: '/eda', icon: BarChart3, label: 'Auto EDA' },
     { path: '/ml', icon: Brain, label: 'Auto ML' },
+    { path: '/anomaly', icon: AlertTriangle, label: 'Anomaly Detection' },
+    { path: '/timeseries', icon: TrendingUp, label: 'Time Series' },
     { path: '/chat', icon: MessageSquare, label: 'AI Chat' },
     { path: '/reports', icon: FileText, label: 'Reports' },
 ]
@@ -47,8 +51,8 @@ function Sidebar({ isOpen, setIsOpen }) {
                             key={item.path}
                             to={item.path}
                             className={`flex items-center px-4 py-3 mx-2 rounded-lg transition-all duration-200 ${isActive
-                                    ? 'bg-purple-600 text-white'
-                                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                                ? 'bg-purple-600 text-white'
+                                : 'text-gray-400 hover:bg-gray-800 hover:text-white'
                                 }`}
                         >
                             <Icon size={20} />

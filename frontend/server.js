@@ -3,6 +3,7 @@ const cors = require('cors');
 const multer = require('multer');
 const csv = require('csv-parser');
 const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const PORT = 8000;
@@ -321,24 +322,135 @@ app.post('/api/report/generate', (req, res) => {
     res.json({ report, type, datasetId, generatedAt: new Date().toISOString() });
 });
 
-// ==================== KAGGLE SEARCH (Mock) ====================
+// ==================== KAGGLE API ENDPOINTS ====================
 
-app.post('/api/kaggle/search', (req, res) => {
-    const { query } = req.body;
+// Search Kaggle datasets
+app.post('/api/kaggle/search', async (req, res) => {
+    const { query, kaggle_username, kaggle_key, page = 1 } = req.body;
 
-    // Mock Kaggle search results
-    const mockResults = [
-        { id: 'titanic', title: 'Titanic Dataset', size: '60 KB', downloads: '50K+', url: 'https://kaggle.com/datasets/titanic' },
-        { id: 'iris', title: 'Iris Flower Dataset', size: '5 KB', downloads: '100K+', url: 'https://kaggle.com/datasets/iris' },
-        { id: 'housing', title: 'California Housing', size: '400 KB', downloads: '30K+', url: 'https://kaggle.com/datasets/housing' },
-        { id: 'mnist', title: 'MNIST Digits', size: '11 MB', downloads: '200K+', url: 'https://kaggle.com/datasets/mnist' },
-        { id: 'wine', title: 'Wine Quality', size: '85 KB', downloads: '25K+', url: 'https://kaggle.com/datasets/wine' }
-    ].filter(d => d.title.toLowerCase().includes(query.toLowerCase()) || d.id.includes(query.toLowerCase()));
+    // If no credentials, return mock results
+    if (!kaggle_username || !kaggle_key) {
+        const mockResults = [
+            { id: 'titanic', ref: 'heptapod/titanic', title: 'Titanic - Machine Learning from Disaster', size: '60 KB', downloads: '50K+' },
+            { id: 'iris', ref: 'uciml/iris', title: 'Iris Species Dataset', size: '5 KB', downloads: '100K+' },
+            { id: 'housing', ref: 'camnugent/california-housing-prices', title: 'California Housing Prices', size: '400 KB', downloads: '30K+' },
+            { id: 'mnist', ref: 'oddrationale/mnist-in-csv', title: 'MNIST in CSV', size: '110 MB', downloads: '200K+' },
+            { id: 'wine', ref: 'uciml/red-wine-quality-cortez-et-al-2009', title: 'Red Wine Quality', size: '85 KB', downloads: '25K+' },
+            { id: 'diabetes', ref: 'uciml/pima-indians-diabetes-database', title: 'Pima Indians Diabetes Database', size: '24 KB', downloads: '80K+' },
+            { id: 'heart', ref: 'ronitf/heart-disease-uci', title: 'Heart Disease UCI', size: '12 KB', downloads: '60K+' },
+            { id: 'boston', ref: 'vikrishnan/boston-house-prices', title: 'Boston House Prices', size: '50 KB', downloads: '40K+' }
+        ].filter(d =>
+            d.title.toLowerCase().includes(query.toLowerCase()) ||
+            d.id.includes(query.toLowerCase()) ||
+            d.ref.toLowerCase().includes(query.toLowerCase())
+        );
 
-    res.json(mockResults.length > 0 ? mockResults : [
-        { id: 'sample', title: `Sample ${query} Dataset`, size: '100 KB', downloads: '10K+', url: '#' }
-    ]);
+        return res.json({
+            datasets: mockResults.length > 0 ? mockResults : [
+                { id: 'sample', ref: `sample/${query}`, title: `Sample ${query} Dataset`, size: '100 KB', downloads: '10K+' }
+            ],
+            message: 'Using mock data. Add Kaggle credentials for real search.'
+        });
+    }
+
+    // Real Kaggle API search
+    try {
+        const auth = Buffer.from(`${kaggle_username}:${kaggle_key}`).toString('base64');
+        const response = await fetch(`https://www.kaggle.com/api/v1/datasets/list?search=${encodeURIComponent(query)}&page=${page}`, {
+            headers: {
+                'Authorization': `Basic ${auth}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            if (response.status === 401) {
+                return res.status(401).json({ error: 'Invalid Kaggle credentials' });
+            }
+            throw new Error(`Kaggle API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const datasets = data.map(d => ({
+            id: d.id || d.ref,
+            ref: d.ref,
+            title: d.title,
+            size: formatSize(d.totalBytes),
+            downloads: d.downloadCount ? `${(d.downloadCount / 1000).toFixed(0)}K+` : 'N/A',
+            description: d.subtitle || d.description,
+            lastUpdated: d.lastUpdated,
+            usabilityRating: d.usabilityRating
+        }));
+
+        res.json({ datasets });
+    } catch (error) {
+        console.error('Kaggle search error:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
+
+// Download Kaggle dataset
+app.post('/api/kaggle/download', async (req, res) => {
+    const { dataset_ref, kaggle_username, kaggle_key } = req.body;
+
+    if (!kaggle_username || !kaggle_key) {
+        return res.status(400).json({ error: 'Kaggle credentials required' });
+    }
+
+    if (!dataset_ref) {
+        return res.status(400).json({ error: 'Dataset reference required' });
+    }
+
+    try {
+        const auth = Buffer.from(`${kaggle_username}:${kaggle_key}`).toString('base64');
+
+        // Get dataset files list
+        const filesResponse = await fetch(`https://www.kaggle.com/api/v1/datasets/list/${dataset_ref}`, {
+            headers: {
+                'Authorization': `Basic ${auth}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        // Download the dataset
+        const downloadResponse = await fetch(`https://www.kaggle.com/api/v1/datasets/download/${dataset_ref}`, {
+            headers: {
+                'Authorization': `Basic ${auth}`
+            }
+        });
+
+        if (!downloadResponse.ok) {
+            if (downloadResponse.status === 401) {
+                return res.status(401).json({ error: 'Invalid Kaggle credentials' });
+            }
+            if (downloadResponse.status === 403) {
+                return res.status(403).json({ error: 'Access denied. You may need to accept the dataset rules on Kaggle.' });
+            }
+            throw new Error(`Download failed: ${downloadResponse.status}`);
+        }
+
+        // For now, return a message that download is complex
+        // In production, you'd handle zip extraction and CSV parsing
+        res.json({
+            message: 'Dataset download initiated',
+            note: 'For large datasets, please download directly from Kaggle and upload the CSV file.',
+            kaggleUrl: `https://www.kaggle.com/datasets/${dataset_ref}`
+        });
+
+    } catch (error) {
+        console.error('Kaggle download error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Helper function to format file size
+function formatSize(bytes) {
+    if (!bytes) return 'N/A';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+}
 
 // Start server
 app.listen(PORT, () => {

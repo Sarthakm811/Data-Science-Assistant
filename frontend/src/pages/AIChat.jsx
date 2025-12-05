@@ -1,7 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { Send, Bot, User, Sparkles } from 'lucide-react'
-
-const API_KEY = "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"
+import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { Send, Bot, User, AlertCircle, Loader, Sparkles } from 'lucide-react'
+import { chatAPI, sessionAPI, handleApiError } from '../services/api'
 
 function AIChat({ dataset }) {
     const [ messages, setMessages ] = useState([
@@ -12,7 +11,22 @@ function AIChat({ dataset }) {
     ])
     const [ input, setInput ] = useState('')
     const [ loading, setLoading ] = useState(false)
+    const [ error, setError ] = useState(null)
+    const [ sessionId, setSessionId ] = useState(null)
     const messagesEndRef = useRef(null)
+
+    // Initialize session
+    useEffect(() => {
+        const initSession = async () => {
+            try {
+                const session = await sessionAPI.createSession()
+                setSessionId(session.session_id)
+            } catch (err) {
+                console.log('Session initialization skipped (optional)')
+            }
+        }
+        initSession()
+    }, [])
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -22,48 +36,38 @@ function AIChat({ dataset }) {
         scrollToBottom()
     }, [ messages ])
 
-    const sendMessage = async () => {
+    const sendMessage = useCallback(async () => {
         if (!input.trim()) return
 
         const userMessage = { role: 'user', content: input }
         setMessages(prev => [ ...prev, userMessage ])
         setInput('')
         setLoading(true)
+        setError(null)
 
         try {
-            let context = ''
-            if (dataset) {
-                context = `Dataset: ${dataset.name}, Rows: ${dataset.rowCount}, Columns: ${dataset.colCount}, Column names: ${dataset.headers.join(', ')}`
-            }
+            const response = await chatAPI.sendMessage(
+                input,
+                dataset?.id || dataset?.datasetId,
+                sessionId || 'demo'
+            )
 
-            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${API_KEY}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    model: 'openai/gpt-3.5-turbo',
-                    messages: [
-                        { role: 'system', content: `You are a helpful data science assistant. ${context}` },
-                        { role: 'user', content: input }
-                    ]
-                })
-            })
-
-            if (response.ok) {
-                const data = await response.json()
-                const answer = data.choices[ 0 ].message.content
-                setMessages(prev => [ ...prev, { role: 'assistant', content: answer } ])
-            } else {
-                setMessages(prev => [ ...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' } ])
+            const assistantMessage = {
+                role: 'assistant',
+                content: response.response || response.message || 'I understood your question'
             }
-        } catch (error) {
-            setMessages(prev => [ ...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' } ])
+            setMessages(prev => [ ...prev, assistantMessage ])
+        } catch (err) {
+            setError(handleApiError(err))
+            const errorMessage = {
+                role: 'assistant',
+                content: `Sorry, I encountered an error: ${handleApiError(err)}`
+            }
+            setMessages(prev => [ ...prev, errorMessage ])
         } finally {
             setLoading(false)
         }
-    }
+    }, [ input, dataset, sessionId ])
 
     return (
         <div className="h-[calc(100vh-200px)] flex flex-col">
@@ -107,8 +111,8 @@ function AIChat({ dataset }) {
                                 )}
                             </div>
                             <div className={`max-w-[70%] rounded-lg p-4 ${msg.role === 'user'
-                                    ? 'bg-purple-600 text-white'
-                                    : 'bg-gray-100 text-gray-800'
+                                ? 'bg-purple-600 text-white'
+                                : 'bg-gray-100 text-gray-800'
                                 }`}>
                                 <p className="whitespace-pre-wrap">{msg.content}</p>
                             </div>

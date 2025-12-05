@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import { Search, BarChart3, Brain, MessageSquare, FileText, Database } from 'lucide-react'
+import { Search, BarChart3, Brain, MessageSquare, FileText, Database, AlertTriangle, TrendingUp } from 'lucide-react'
 
 const features = [
     {
@@ -20,9 +20,23 @@ const features = [
     {
         icon: Brain,
         title: 'Auto ML',
-        description: 'Train and compare machine learning models automatically',
+        description: 'Train and compare 35+ machine learning models',
         path: '/ml',
         color: 'bg-purple-500'
+    },
+    {
+        icon: AlertTriangle,
+        title: 'Anomaly Detection',
+        description: 'Identify outliers using Isolation Forest & Z-Score',
+        path: '/anomaly',
+        color: 'bg-red-500'
+    },
+    {
+        icon: TrendingUp,
+        title: 'Time Series',
+        description: 'Analyze trends, seasonality, and forecast values',
+        path: '/timeseries',
+        color: 'bg-cyan-500'
     },
     {
         icon: MessageSquare,
