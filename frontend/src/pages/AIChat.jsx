@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { Send, Bot, User, Sparkles, AlertCircle } from 'lucide-react'
+import { Send, Bot, User, Sparkles } from 'lucide-react'
+
+const API_KEY = "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"
 
 function AIChat({ dataset }) {
     const [ messages, setMessages ] = useState([
@@ -10,7 +12,6 @@ function AIChat({ dataset }) {
     ])
     const [ input, setInput ] = useState('')
     const [ loading, setLoading ] = useState(false)
-    const [ apiKey, setApiKey ] = useState('')
     const messagesEndRef = useRef(null)
 
     const scrollToBottom = () => {
@@ -29,39 +30,39 @@ function AIChat({ dataset }) {
         setInput('')
         setLoading(true)
 
-        // Simulate AI response
-        setTimeout(() => {
-            let response = ''
-
-            if (!dataset) {
-                response = 'Please upload a dataset first so I can help you analyze it!'
-            } else if (input.toLowerCase().includes('summary') || input.toLowerCase().includes('describe')) {
-                response = `Here's a summary of your dataset "${dataset.name}":\n\n` +
-                    `- Total Rows: ${dataset.rowCount}\n` +
-                    `- Total Columns: ${dataset.colCount}\n` +
-                    `- Columns: ${dataset.headers.join(', ')}\n\n` +
-                    `Would you like me to perform a detailed analysis?`
-            } else if (input.toLowerCase().includes('column')) {
-                response = `Your dataset has ${dataset.colCount} columns:\n\n` +
-                    dataset.headers.map((h, i) => `${i + 1}. ${h}`).join('\n') +
-                    `\n\nWould you like to know more about any specific column?`
-            } else if (input.toLowerCase().includes('missing')) {
-                response = `I can check for missing values in your dataset. Based on a quick scan, ` +
-                    `your dataset appears to have some missing values. Would you like me to run a detailed missing data analysis?`
-            } else {
-                response = `I understand you're asking about "${input}". ` +
-                    `Based on your dataset "${dataset.name}" with ${dataset.rowCount} rows and ${dataset.colCount} columns, ` +
-                    `I can help you with:\n\n` +
-                    `1. Data summary and statistics\n` +
-                    `2. Missing value analysis\n` +
-                    `3. Column information\n` +
-                    `4. Data quality assessment\n\n` +
-                    `What would you like to explore?`
+        try {
+            let context = ''
+            if (dataset) {
+                context = `Dataset: ${dataset.name}, Rows: ${dataset.rowCount}, Columns: ${dataset.colCount}, Column names: ${dataset.headers.join(', ')}`
             }
 
-            setMessages(prev => [ ...prev, { role: 'assistant', content: response } ])
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'openai/gpt-3.5-turbo',
+                    messages: [
+                        { role: 'system', content: `You are a helpful data science assistant. ${context}` },
+                        { role: 'user', content: input }
+                    ]
+                })
+            })
+
+            if (response.ok) {
+                const data = await response.json()
+                const answer = data.choices[ 0 ].message.content
+                setMessages(prev => [ ...prev, { role: 'assistant', content: answer } ])
+            } else {
+                setMessages(prev => [ ...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' } ])
+            }
+        } catch (error) {
+            setMessages(prev => [ ...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' } ])
+        } finally {
             setLoading(false)
-        }, 1500)
+        }
     }
 
     return (
@@ -80,16 +81,12 @@ function AIChat({ dataset }) {
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <input
-                            type="password"
-                            value={apiKey}
-                            onChange={(e) => setApiKey(e.target.value)}
-                            placeholder="Gemini API Key"
-                            className="input-field w-48"
-                        />
+                        <div className="bg-green-50 px-3 py-2 rounded-lg border border-green-200">
+                            <p className="text-sm text-green-700">AI Ready</p>
+                        </div>
                         {dataset && (
-                            <div className="bg-green-50 px-3 py-2 rounded-lg border border-green-200">
-                                <p className="text-sm text-green-700">{dataset.name}</p>
+                            <div className="bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
+                                <p className="text-sm text-blue-700">{dataset.name}</p>
                             </div>
                         )}
                     </div>
