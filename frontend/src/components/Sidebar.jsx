@@ -66,7 +66,7 @@ function Sidebar({ isOpen, setIsOpen }) {
                 {isOpen && (
                     <div className="bg-gray-800 rounded-lg p-4">
                         <p className="text-xs text-gray-400">Powered by</p>
-                        <p className="text-sm font-semibold">Gemini AI</p>
+                        <p className="text-sm font-semibold">AI & Machine Learning</p>
                     </div>
                 )}
             </div>
