@@ -45,3 +45,5 @@ results.json
 # Secrets
 secrets/
 kaggle.json
+.vercel
+.env*.local
