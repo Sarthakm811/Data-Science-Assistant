@@ -30,6 +30,7 @@ function Reports({ dataset }) {
         const now = new Date().toLocaleString()
         let html = `<!DOCTYPE html><html><head>
 <title>Data Analysis Report - ${dataset.name}</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',Arial,sans-serif;line-height:1.6;color:#333;max-width:1200px;margin:0 auto;padding:40px;background:#f5f5f5}
@@ -48,6 +49,8 @@ th,td{padding:10px 12px;text-align:left;border-bottom:1px solid #e5e7eb}
 th{background:#7c3aed;color:white;font-weight:600}
 tr:hover{background:#f3f4f6}
 .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:0.8em;font-weight:500}
+.chart-container{background:white;padding:20px;border-radius:8px;margin:20px 0;box-shadow:0 2px 8px rgba(0,0,0,0.05)}
+canvas{max-height:400px}
 .badge-success{background:#d1fae5;color:#065f46}
 .badge-warning{background:#fef3c7;color:#92400e}
 .badge-danger{background:#fee2e2;color:#991b1b}
@@ -105,6 +108,89 @@ tr:hover{background:#f3f4f6}
                     html += `<div class="insight insight-${i.type === 'warning' ? 'warning' : i.type === 'success' ? 'success' : 'info'}"><strong>${i.title}:</strong> ${i.desc} <em>(${i.action})</em></div>`
                 })
             }
+
+            // Add Charts
+            html += `<h3>📊 Visual Analysis</h3>`
+
+            // Missing Data Chart
+            if (edaResults.missingData?.length > 0) {
+                const missingChartData = edaResults.missingData.filter(m => m.missing > 0).slice(0, 10)
+                html += `<div class="chart-container"><canvas id="missingChart"></canvas></div>
+<script>
+new Chart(document.getElementById('missingChart'), {
+    type: 'bar',
+    data: {
+        labels: ${JSON.stringify(missingChartData.map(m => m.name))},
+        datasets: [{
+            label: 'Missing Values (%)',
+            data: ${JSON.stringify(missingChartData.map(m => parseFloat(m.percentage)))},
+            backgroundColor: 'rgba(239, 68, 68, 0.7)',
+            borderColor: 'rgb(239, 68, 68)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { title: { display: true, text: 'Missing Data by Column' } },
+        scales: { y: { beginAtZero: true, title: { display: true, text: 'Percentage (%)' } } }
+    }
+});
+</script>`
+            }
+
+            // Statistics Distribution Chart
+            if (edaResults.statistics?.length > 0) {
+                const statsData = edaResults.statistics.slice(0, 8)
+                html += `<div class="chart-container"><canvas id="statsChart"></canvas></div>
+<script>
+new Chart(document.getElementById('statsChart'), {
+    type: 'bar',
+    data: {
+        labels: ${JSON.stringify(statsData.map(s => s.name))},
+        datasets: [{
+            label: 'Mean',
+            data: ${JSON.stringify(statsData.map(s => parseFloat(s.mean)))},
+            backgroundColor: 'rgba(124, 58, 237, 0.7)'
+        }, {
+            label: 'Std Dev',
+            data: ${JSON.stringify(statsData.map(s => parseFloat(s.std)))},
+            backgroundColor: 'rgba(59, 130, 246, 0.7)'
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { title: { display: true, text: 'Statistical Summary' } }
+    }
+});
+</script>`
+            }
+
+            // Correlation Heatmap (Top 10)
+            if (edaResults.correlations?.length > 0) {
+                const topCorr = edaResults.correlations.sort((a, b) => Math.abs(b.correlation) - Math.abs(a.correlation)).slice(0, 10)
+                html += `<div class="chart-container"><canvas id="corrChart"></canvas></div>
+<script>
+new Chart(document.getElementById('corrChart'), {
+    type: 'bar',
+    data: {
+        labels: ${JSON.stringify(topCorr.map(c => `${c.feature1} vs ${c.feature2}`))},
+        datasets: [{
+            label: 'Correlation',
+            data: ${JSON.stringify(topCorr.map(c => c.correlation))},
+            backgroundColor: ${JSON.stringify(topCorr.map(c => c.correlation > 0 ? 'rgba(16, 185, 129, 0.7)' : 'rgba(239, 68, 68, 0.7)'))},
+            borderWidth: 1
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { title: { display: true, text: 'Top Correlations' } },
+        scales: { x: { min: -1, max: 1 } }
+    }
+});
+</script>`
+            }
+
             html += `</div>`
         }
 
@@ -127,6 +213,66 @@ tr:hover{background:#f3f4f6}
                 html += `<h3>Feature Importance (Top 10)</h3><table><thead><tr><th>Feature</th><th>Importance</th><th>Visual</th></tr></thead>
 <tbody>${mlResults.featureImportance.slice(0, 10).map(f => `<tr><td>${f.feature}</td><td>${(f.importance * 100)?.toFixed(1)}%</td><td><div style="background:#e5e7eb;border-radius:4px;height:20px;width:200px"><div style="background:#7c3aed;height:100%;width:${f.importance * 100}%;border-radius:4px"></div></div></td></tr>`).join('')}</tbody></table>`
             }
+
+            // ML Charts
+            html += `<h3>📊 Model Performance Visualization</h3>`
+
+            // Model Comparison Chart
+            const topModels = mlResults.models?.slice(0, 8) || []
+            html += `<div class="chart-container"><canvas id="mlChart"></canvas></div>
+<script>
+new Chart(document.getElementById('mlChart'), {
+    type: 'bar',
+    data: {
+        labels: ${JSON.stringify(topModels.map(m => m.type || m.name))},
+        datasets: [{
+            label: '${isClassification ? 'Accuracy (%)' : 'R² Score'}',
+            data: ${JSON.stringify(topModels.map(m => isClassification ? (m.accuracy * 100) : m.r2))},
+            backgroundColor: 'rgba(124, 58, 237, 0.7)',
+            borderColor: 'rgb(124, 58, 237)',
+            borderWidth: 1
+        }${isClassification ? `, {
+            label: 'F1 Score (%)',
+            data: ${JSON.stringify(topModels.map(m => m.f1 * 100))},
+            backgroundColor: 'rgba(236, 72, 153, 0.7)',
+            borderColor: 'rgb(236, 72, 153)',
+            borderWidth: 1
+        }` : ''}]
+    },
+    options: {
+        responsive: true,
+        plugins: { title: { display: true, text: 'Model Performance Comparison' } },
+        scales: { y: { beginAtZero: true${isClassification ? ', max: 100' : ''} } }
+    }
+});
+</script>`
+
+            // Feature Importance Chart
+            if (mlResults.featureImportance?.length > 0) {
+                const topFeatures = mlResults.featureImportance.slice(0, 10)
+                html += `<div class="chart-container"><canvas id="featureChart"></canvas></div>
+<script>
+new Chart(document.getElementById('featureChart'), {
+    type: 'bar',
+    data: {
+        labels: ${JSON.stringify(topFeatures.map(f => f.feature))},
+        datasets: [{
+            label: 'Importance (%)',
+            data: ${JSON.stringify(topFeatures.map(f => f.importance * 100))},
+            backgroundColor: 'rgba(16, 185, 129, 0.7)',
+            borderColor: 'rgb(16, 185, 129)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { title: { display: true, text: 'Feature Importance' } }
+    }
+});
+</script>`
+            }
+
             html += `</div>`
         }
 
@@ -286,8 +432,8 @@ tr:hover{background:#f3f4f6}
                     ].map(item => {
                         const Icon = item.icon
                         return (
-                            <label key={item.key} className={`flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition ${config[item.key] ? 'border-purple-500 bg-purple-50' : 'border-gray-200'} ${!item.hasData ? 'opacity-50' : ''}`}>
-                                <input type="checkbox" checked={config[item.key]} onChange={(e) => setConfig({...config, [item.key]: e.target.checked})} className="w-4 h-4" disabled={!item.hasData && item.key !== 'includeDataPreview'} />
+                            <label key={item.key} className={`flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition ${config[ item.key ] ? 'border-purple-500 bg-purple-50' : 'border-gray-200'} ${!item.hasData ? 'opacity-50' : ''}`}>
+                                <input type="checkbox" checked={config[ item.key ]} onChange={(e) => setConfig({ ...config, [ item.key ]: e.target.checked })} className="w-4 h-4" disabled={!item.hasData && item.key !== 'includeDataPreview'} />
                                 <Icon size={16} />
                                 <span className="text-sm">{item.label}</span>
                             </label>
@@ -324,12 +470,12 @@ tr:hover{background:#f3f4f6}
                 <h3 className="text-lg font-semibold mb-4">Report Contents</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {[
-                        { icon: '📁', title: 'Dataset Overview', items: ['Row/column counts', 'Data types', 'Data preview'] },
-                        { icon: '🔍', title: 'EDA Analysis', items: ['Quality score', 'Statistics', 'Missing data', 'Correlations', 'AI insights'] },
-                        { icon: '🤖', title: 'ML Results', items: ['Model comparison', 'Best model', 'Feature importance', 'Metrics'] },
-                        { icon: '⚠️', title: 'Anomaly Detection', items: ['Anomaly count', 'Detection method', 'Column statistics'] },
-                        { icon: '📈', title: 'Time Series', items: ['Trend analysis', 'Seasonality', 'Statistics'] },
-                        { icon: '💡', title: 'Recommendations', items: ['Data quality tips', 'Model suggestions', 'Next steps'] }
+                        { icon: '📁', title: 'Dataset Overview', items: [ 'Row/column counts', 'Data types', 'Data preview' ] },
+                        { icon: '🔍', title: 'EDA Analysis', items: [ 'Quality score', 'Statistics', 'Missing data', 'Correlations', 'AI insights' ] },
+                        { icon: '🤖', title: 'ML Results', items: [ 'Model comparison', 'Best model', 'Feature importance', 'Metrics' ] },
+                        { icon: '⚠️', title: 'Anomaly Detection', items: [ 'Anomaly count', 'Detection method', 'Column statistics' ] },
+                        { icon: '📈', title: 'Time Series', items: [ 'Trend analysis', 'Seasonality', 'Statistics' ] },
+                        { icon: '💡', title: 'Recommendations', items: [ 'Data quality tips', 'Model suggestions', 'Next steps' ] }
                     ].map((section, i) => (
                         <div key={i} className="flex gap-3 p-3 bg-gray-50 rounded-lg">
                             <span className="text-2xl">{section.icon}</span>
